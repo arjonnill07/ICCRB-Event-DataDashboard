@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { SummaryTable } from './components/SummaryTable';
 import { processFiles } from './services/dataProcessor';
+import { exportToPDF, exportToXLSX } from './services/exporter';
 import type { SummaryData } from './types';
 
 const App: React.FC = () => {
@@ -34,6 +35,18 @@ const App: React.FC = () => {
             setIsLoading(false);
         }
     }, [participantFile, diarrheaFile]);
+    
+    const handleExportPDF = useCallback(() => {
+        if (summaryData) {
+            exportToPDF(summaryData);
+        }
+    }, [summaryData]);
+
+    const handleExportXLSX = useCallback(() => {
+        if (summaryData) {
+            exportToXLSX(summaryData);
+        }
+    }, [summaryData]);
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-800 antialiased">
@@ -94,7 +107,23 @@ const App: React.FC = () => {
                     
                     {summaryData && !isLoading && (
                         <div className="mt-12">
-                             <h2 className="text-2xl font-semibold text-gray-800 mb-4">Analysis Results</h2>
+                             <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-2xl font-semibold text-gray-800">Analysis Results</h2>
+                                <div className="flex space-x-3">
+                                    <button
+                                        onClick={handleExportXLSX}
+                                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Export to XLSX
+                                    </button>
+                                    <button
+                                        onClick={handleExportPDF}
+                                        className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                    >
+                                        Export to PDF
+                                    </button>
+                                </div>
+                            </div>
                             <SummaryTable data={summaryData} />
                         </div>
                     )}

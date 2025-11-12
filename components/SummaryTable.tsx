@@ -1,12 +1,6 @@
-
 import React from 'react';
 import type { SummaryData, SiteSummary } from '../types';
-
-const formatPercent = (numerator: number, denominator: number): string => {
-    if (denominator === 0) return '0.00%';
-    const value = (numerator / denominator) * 100;
-    return `${value.toFixed(2)}%`;
-}
+import { formatPercent } from '../utils/formatter';
 
 const TableRow: React.FC<{ item: SiteSummary, isTotal?: boolean }> = ({ item, isTotal = false }) => (
     <tr className={isTotal ? "bg-gray-200 font-bold" : "even:bg-gray-50"}>
