@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { SummaryTable } from './components/SummaryTable';
@@ -74,7 +75,7 @@ const App: React.FC = () => {
                             <FileUpload 
                                 id="diarrhea-file"
                                 title="Diarrheal Events" 
-                                description="XLSX with columns: 'Rand# ID', 'Collection Date', 'Result (Culture)'"
+                                description="CSV or XLSX with columns: 'Rand# ID', 'Collection Date', 'Result'"
                                 onFileSelect={setDiarrheaFile}
                             />
                         </div>

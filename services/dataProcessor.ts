@@ -147,7 +147,7 @@ const parseEventsFile = (file: File): Promise<DiarrhealEvent[]> => {
                     return reject(new Error("Events file has an invalid format or is too short."));
                 }
                 
-                const REQUIRED_HEADERS = ['Rand# ID', 'Collection Date', 'Result (Culture)'];
+                const REQUIRED_HEADERS = ['Rand# ID', 'Collection Date', 'Result'];
                 let headerRowIndex = -1;
                 let colMap: { [key: string]: number } = {};
 
@@ -159,14 +159,14 @@ const parseEventsFile = (file: File): Promise<DiarrhealEvent[]> => {
                         colMap = {
                             randId: headers.indexOf('Rand# ID'),
                             collectionDate: headers.indexOf('Collection Date'),
-                            resultCulture: headers.indexOf('Result (Culture)'),
+                            resultCulture: headers.indexOf('Result'),
                         };
                         break;
                     }
                 }
 
                 if (headerRowIndex === -1) {
-                    return reject(new Error("Could not find required headers in events file: 'Rand# ID', 'Collection Date', 'Result (Culture)'."));
+                    return reject(new Error("Could not find required headers in events file: 'Rand# ID', 'Collection Date', 'Result'."));
                 }
                 
                 const dataRows = rows.slice(headerRowIndex + 1);
