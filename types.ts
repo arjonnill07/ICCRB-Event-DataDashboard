@@ -10,6 +10,7 @@ export interface DiarrhealEvent {
   participant_id: string;
   event_date: string;
   culture_positive: string;
+  episode_id: string;
 }
 
 export interface SiteSummary {
