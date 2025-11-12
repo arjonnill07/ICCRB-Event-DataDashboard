@@ -1,0 +1,5 @@
+{
+  "name": "Clinical Trial Data Dashboard",
+  "description": "An interactive dashboard to analyze clinical trial data by uploading participant and event information from CSV files, generating a comprehensive summary table.",
+  "requestFramePermissions": []
+}
