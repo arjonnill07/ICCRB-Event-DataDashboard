@@ -25,7 +25,8 @@ const getTableData = (data: SummaryData): (string | number)[][] => {
     ]);
 };
 
-export const exportToXLSX = (data: SummaryData) => {
+export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
+    const reportDateInfo = [`Report Generated: ${generatedAt.toLocaleString()}`];
     const header1 = [
         "Site Name", 
         "Enrollment", 
@@ -42,17 +43,18 @@ export const exportToXLSX = (data: SummaryData) => {
     ];
 
     const tableData = getTableData(data);
-    const finalData = [header1, header2, ...tableData];
+    const finalData = [reportDateInfo, [], header1, header2, ...tableData];
 
     const ws = XLSX.utils.aoa_to_sheet(finalData);
     
+    // Adjust row indices by +2 to account for the date and spacer rows
     ws['!merges'] = [
-        { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } }, // Site Name
-        { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } }, // Enrollment
-        { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } }, // Number of Diarrhoeal Events
-        { s: { r: 0, c: 3 }, e: { r: 0, c: 4 } }, // After 1st dose
-        { s: { r: 0, c: 5 }, e: { r: 0, c: 6 } }, // After 2nd dose
-        { s: { r: 0, c: 7 }, e: { r: 0, c: 8 } }, // After 30 days
+        { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } }, // Site Name
+        { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } }, // Enrollment
+        { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } }, // Number of Diarrhoeal Events
+        { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, // After 1st dose
+        { s: { r: 2, c: 5 }, e: { r: 2, c: 6 } }, // After 2nd dose
+        { s: { r: 2, c: 7 }, e: { r: 2, c: 8 } }, // After 30 days
     ];
 
     const wb = XLSX.utils.book_new();
@@ -60,7 +62,7 @@ export const exportToXLSX = (data: SummaryData) => {
     XLSX.writeFile(wb, "Clinical_Trial_Summary_Report.xlsx");
 };
 
-export const exportToPDF = (data: SummaryData) => {
+export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
     try {
         if (!window.jsPDF || typeof window.jsPDF !== 'function') {
             throw new Error("jsPDF constructor not found. The PDF library may not have loaded correctly.");
@@ -75,28 +77,30 @@ export const exportToPDF = (data: SummaryData) => {
         doc.setFontSize(18);
         doc.text("Clinical Trial Summary Report", 14, 22);
 
-        // Define columns and body for the jsPDF-AutoTable v2.x API
+        doc.setFontSize(10);
+        doc.setTextColor(100); // A gray color for the subtitle
+        doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 14, 28);
+
         const columns = [
-            "Site Name",
-            "Enrollment",
-            "Diarrhoeal Events",
-            "Events\n(1st dose)",
-            "Positive\n(1st dose)",
-            "Events\n(2nd dose)",
-            "Positive\n(2nd dose)",
-            "Events\n(30d+)",
-            "Positive\n(30d+)",
+            { title: "Site Name", dataKey: "siteName" },
+            { title: "Enrollment", dataKey: "enrollment" },
+            { title: "Diarrhoeal Events", dataKey: "diarrhoealEvents" },
+            { title: "Events\n(1st dose)", dataKey: "events1" },
+            { title: "Positive\n(1st dose)", dataKey: "positive1" },
+            { title: "Events\n(2nd dose)", dataKey: "events2" },
+            { title: "Positive\n(2nd dose)", dataKey: "positive2" },
+            { title: "Events\n(30d+)", dataKey: "events30" },
+            { title: "Positive\n(30d+)", dataKey: "positive30" },
         ];
         
         const body = getTableData(data);
 
-        // Define options and call autoTable with the correct signature: (columns, data, options)
         (doc as any).autoTable(columns, body, {
-            startY: 30,
+            startY: 32,
             theme: 'grid',
             headStyles: {
                 fillColor: [243, 244, 246], // gray-100
-                textColor: [55, 65, 81], // gray-700
+                textColor: [55, 65, 81],    // gray-700
                 fontStyle: 'bold',
                 halign: 'center'
             },
@@ -105,15 +109,15 @@ export const exportToPDF = (data: SummaryData) => {
                 fontSize: 8,
             },
             columnStyles: {
-                0: { halign: 'left' },
-                1: { halign: 'center' },
-                2: { halign: 'center' },
-                3: { halign: 'center' },
-                4: { halign: 'center' },
-                5: { halign: 'center' },
-                6: { halign: 'center' },
-                7: { halign: 'center' },
-                8: { halign: 'center' },
+                siteName: { halign: 'left' },
+                enrollment: { halign: 'center' },
+                diarrhoealEvents: { halign: 'center' },
+                events1: { halign: 'center' },
+                positive1: { halign: 'center' },
+                events2: { halign: 'center' },
+                positive2: { halign: 'center' },
+                events30: { halign: 'center' },
+                positive30: { halign: 'center' },
             },
             didParseCell: function(hookData: any) {
                  if (hookData.row.index === body.length - 1) { // Last row (Totals)

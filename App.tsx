@@ -12,6 +12,7 @@ const App: React.FC = () => {
     const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
+    const [reportGeneratedAt, setReportGeneratedAt] = useState<Date | null>(null);
 
     const handleGenerateReport = useCallback(async () => {
         if (!participantFile || !diarrheaFile) {
@@ -22,10 +23,12 @@ const App: React.FC = () => {
         setIsLoading(true);
         setError(null);
         setSummaryData(null);
+        setReportGeneratedAt(null);
 
         try {
             const data = await processFiles(participantFile, diarrheaFile);
             setSummaryData(data);
+            setReportGeneratedAt(new Date());
         } catch (e) {
             if (e instanceof Error) {
                 setError(`An error occurred: ${e.message}. Please check file formats and content.`);
@@ -38,16 +41,16 @@ const App: React.FC = () => {
     }, [participantFile, diarrheaFile]);
     
     const handleExportPDF = useCallback(() => {
-        if (summaryData) {
-            exportToPDF(summaryData);
+        if (summaryData && reportGeneratedAt) {
+            exportToPDF(summaryData, reportGeneratedAt);
         }
-    }, [summaryData]);
+    }, [summaryData, reportGeneratedAt]);
 
     const handleExportXLSX = useCallback(() => {
-        if (summaryData) {
-            exportToXLSX(summaryData);
+        if (summaryData && reportGeneratedAt) {
+            exportToXLSX(summaryData, reportGeneratedAt);
         }
-    }, [summaryData]);
+    }, [summaryData, reportGeneratedAt]);
 
     return (
         <div className="min-h-screen bg-gray-50 text-gray-800 antialiased">
@@ -109,7 +112,14 @@ const App: React.FC = () => {
                     {summaryData && !isLoading && (
                         <div className="mt-12">
                              <div className="flex justify-between items-center mb-4">
-                                <h2 className="text-2xl font-semibold text-gray-800">Analysis Results</h2>
+                                <div>
+                                    <h2 className="text-2xl font-semibold text-gray-800">Analysis Results</h2>
+                                    {reportGeneratedAt && (
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            Generated on: {reportGeneratedAt.toLocaleString()}
+                                        </p>
+                                    )}
+                                </div>
                                 <div className="flex space-x-3">
                                     <button
                                         onClick={handleExportXLSX}
