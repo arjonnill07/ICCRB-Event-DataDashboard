@@ -1,3 +1,4 @@
+
 import type { Participant, DiarrhealEvent, SiteSummary, SummaryData } from '../types';
 
 declare const XLSX: any;
@@ -46,7 +47,7 @@ const parseDate = (dateInput: any): Date | null => {
 };
 
 
-// Robust, content-aware file parser.
+// Robust, simplified file parser that delegates format detection to the library.
 const parseFile = (file: File): Promise<any[][]> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -57,31 +58,11 @@ const parseFile = (file: File): Promise<any[][]> => {
                     return reject(new Error("File could not be read."));
                 }
 
-                const buffer = event.target.result as ArrayBuffer;
+                const data = event.target.result;
                 
-                // Check for ZIP/XLSX magic number (PK\x03\x04)
-                const view = new Uint8Array(buffer, 0, 4);
-                const isXlsx = view.length === 4 && view[0] === 0x50 && view[1] === 0x4B && view[2] === 0x03 && view[3] === 0x04;
-                
-                let workbook;
-
-                if (isXlsx) {
-                    // It's a binary format like XLSX, parse from the ArrayBuffer.
-                    workbook = XLSX.read(buffer, { type: 'array' });
-                } else {
-                    // It's not an XLSX, so treat it as a text-based format (e.g., CSV).
-                    // Decode the ArrayBuffer to a string. TextDecoder is the modern standard.
-                    const decoder = new TextDecoder('utf-8');
-                    let textData = decoder.decode(buffer);
-
-                    // Check for and remove the UTF-8 Byte Order Mark (BOM) if present.
-                    if (textData.charCodeAt(0) === 0xFEFF) {
-                        textData = textData.substring(1);
-                    }
-                    
-                    // Parse the decoded text string.
-                    workbook = XLSX.read(textData, { type: 'string' });
-                }
+                // The XLSX library can intelligently handle different file types (XLSX, CSV)
+                // when reading from an ArrayBuffer. This is more robust than manual detection.
+                const workbook = XLSX.read(data, { type: 'array' });
 
                 if (!workbook || !workbook.SheetNames.length) {
                     return reject(new Error(`File "${file.name}" contains no readable sheets.`));
@@ -105,7 +86,7 @@ const parseFile = (file: File): Promise<any[][]> => {
 
         reader.onerror = () => reject(new Error(`Error reading file "${file.name}".`));
 
-        // Always read the file as an ArrayBuffer to allow for content inspection.
+        // Always read the file as an ArrayBuffer and let the library handle parsing.
         reader.readAsArrayBuffer(file);
     });
 };
@@ -185,37 +166,56 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
         throw new Error("Events file has an invalid format or is too short.");
     }
     
-    const REQUIRED_HEADERS = ['Rand# ID', 'Collection Date', 'Result', 'Site Number & Episode'];
+    const REQUIRED_BASE_HEADERS = ['Rand# ID', 'Collection Date', 'Result'];
+    
     let headerRowIndex = -1;
-    let colMap: { [key: string]: number } = {};
+    let headers: string[] = [];
 
     for (let i = 0; i < Math.min(rows.length, 10); i++) {
         const potentialHeaders = rows[i].map(h => String(h || '').trim());
-        if (REQUIRED_HEADERS.every(req => potentialHeaders.includes(req))) {
+        const hasBaseHeaders = REQUIRED_BASE_HEADERS.every(req => potentialHeaders.includes(req));
+
+        if (hasBaseHeaders) {
             headerRowIndex = i;
-            const headers = potentialHeaders;
-            colMap = {
-                randId: headers.indexOf('Rand# ID'),
-                collectionDate: headers.indexOf('Collection Date'),
-                resultCulture: headers.indexOf('Result'),
-                episodeId: headers.indexOf('Site Number & Episode'),
-            };
+            headers = potentialHeaders;
             break;
         }
     }
 
     if (headerRowIndex === -1) {
-        throw new Error("Could not find required headers in events file: 'Rand# ID', 'Collection Date', 'Result', 'Site Number & Episode'.");
+        throw new Error("Could not find required headers in events file. Must contain at least: 'Rand# ID', 'Collection Date', 'Result'.");
     }
+    
+    const colMap = {
+        randId: headers.indexOf('Rand# ID'),
+        collectionDate: headers.indexOf('Collection Date'),
+        resultCulture: headers.indexOf('Result'),
+        siteSpecificParticipants: headers.indexOf('Site specific Participants'),
+        siteNumberEpisode: headers.indexOf('Site Number & Episode'),
+    };
     
     const dataRows = rows.slice(headerRowIndex + 1);
 
-    const result = dataRows.map(row => {
+    const result = dataRows.map((row, index) => {
         const participantId = String(row[colMap.randId] || '').trim();
         const eventDateObj = parseDate(row[colMap.collectionDate]);
-        const episodeId = String(row[colMap.episodeId] || '').trim();
 
-        if (!participantId || !eventDateObj || !episodeId) return null;
+        // A row is only a processable event if it has a participant and a date.
+        // It's okay if the result is empty, it will be treated as 'Negative'.
+        if (!participantId || !eventDateObj) {
+            return null;
+        }
+
+        const specificEpisodeId = colMap.siteSpecificParticipants > -1 ? String(row[colMap.siteSpecificParticipants] || '').trim() : '';
+        const generalEpisodeId = colMap.siteNumberEpisode > -1 ? String(row[colMap.siteNumberEpisode] || '').trim() : '';
+        
+        let episodeId = specificEpisodeId || generalEpisodeId;
+        
+        // If no episode identifier is found, create a synthetic one to ensure the event is counted as a unique episode.
+        // Using the row index guarantees uniqueness, preventing accidental grouping of unrelated events.
+        if (!episodeId) {
+            episodeId = `synthetic-episode-${participantId}-${index}`;
+        }
 
         return {
             participant_id: participantId,
@@ -246,15 +246,17 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
     const uniqueEpisodes = new Map<string, DiarrhealEvent>();
 
     for (const event of eventsData) {
-        if (!event.participant_id || !event.episode_id) {
-            continue;
-        }
+        // The parser now guarantees a participant_id and episode_id for valid events
         
         // Normalize episode ID by removing day-specific info to group multi-day samples
-        const episodeKey = `${event.participant_id}-${event.episode_id.replace(/, Day-\d+/i, '').trim()}`;
+        const normalizedEpisodeId = event.episode_id.replace(/(, Day-\d+|\s+\(Day-\d+\)|\s+Day-\d+)/i, '').trim();
+        const episodeKey = `${event.participant_id}-${normalizedEpisodeId}`;
         
         const existingEpisode = uniqueEpisodes.get(episodeKey);
-        const isCurrentSamplePositive = String(event.culture_positive).trim().toLowerCase().startsWith('positive');
+        
+        const rawResult = String(event.culture_positive).trim().toLowerCase();
+        // Use a more lenient check for "positive"
+        const isCurrentSamplePositive = rawResult.includes('pos') || rawResult === '1';
 
         if (!existingEpisode) {
             // This is the first sample we've seen for this episode.
@@ -319,11 +321,9 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
 
         const summary = siteSummaries.get(participant.site_name)!;
 
-        // --- FIX: Increment total events before checking for dose dates ---
         summary.totalDiarrhealEvents++;
         const isCulturePositive = event.culture_positive.toLowerCase().startsWith('positive');
 
-        // --- Now, categorize the event only if dose dates are available ---
         if (!participant.dose1_date) {
             continue; // Cannot categorize without at least dose 1
         }
