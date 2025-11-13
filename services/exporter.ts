@@ -3,10 +3,10 @@ import { formatPercent } from '../utils/formatter';
 
 declare const XLSX: any;
 
-// Since the jsPDF library is loaded via a script tag, we need to declare its presence on the window object for TypeScript.
+// Since the jsPDF library (v2+) is loaded via script, we declare its namespaced presence on the window object.
 declare global {
     interface Window {
-        jsPDF: any;
+        jspdf: any;
     }
 }
 
@@ -64,39 +64,45 @@ export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
 
 export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
     try {
-        if (!window.jsPDF || typeof window.jsPDF !== 'function') {
-            throw new Error("jsPDF constructor not found. The PDF library may not have loaded correctly.");
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            throw new Error("jsPDF constructor not found. The PDF library (v2+) may not have loaded correctly.");
         }
 
-        const doc = new window.jsPDF('l');
+        const doc = new window.jspdf.jsPDF('l', 'pt');
 
         if (typeof (doc as any).autoTable !== 'function') {
             throw new Error("jsPDF-AutoTable plugin not loaded correctly. The 'autoTable' method is missing.");
         }
 
         doc.setFontSize(18);
-        doc.text("Clinical Trial Summary Report", 14, 22);
+        doc.text("Clinical Trial Summary Report", 40, 50);
 
         doc.setFontSize(10);
-        doc.setTextColor(100); // A gray color for the subtitle
-        doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 14, 28);
+        doc.setTextColor(100);
+        doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 40, 65);
 
-        const columns = [
-            { title: "Site Name", dataKey: "siteName" },
-            { title: "Enrollment", dataKey: "enrollment" },
-            { title: "Diarrhoeal Events", dataKey: "diarrhoealEvents" },
-            { title: "Events\n(1st dose)", dataKey: "events1" },
-            { title: "Positive\n(1st dose)", dataKey: "positive1" },
-            { title: "Events\n(2nd dose)", dataKey: "events2" },
-            { title: "Positive\n(2nd dose)", dataKey: "positive2" },
-            { title: "Events\n(30d+)", dataKey: "events30" },
-            { title: "Positive\n(30d+)", dataKey: "positive30" },
+        const head = [
+            [
+                { content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'Enrollment', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'Number of Diarrhoeal Events', rowSpan: 2, styles: { valign: 'middle' } },
+                { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } },
+                { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } },
+                { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }
+            ],
+            [
+                'Diarrheal events', 'Culture positive',
+                'Diarrheal events', 'Culture positive',
+                'Diarrheal events', 'Culture positive'
+            ]
         ];
-        
+
         const body = getTableData(data);
 
-        (doc as any).autoTable(columns, body, {
-            startY: 32,
+        (doc as any).autoTable({
+            head: head,
+            body: body,
+            startY: 75,
             theme: 'grid',
             headStyles: {
                 fillColor: [243, 244, 246], // gray-100
@@ -105,22 +111,22 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
                 halign: 'center'
             },
             styles: {
-                cellPadding: 2,
+                cellPadding: 3,
                 fontSize: 8,
             },
             columnStyles: {
-                siteName: { halign: 'left' },
-                enrollment: { halign: 'center' },
-                diarrhoealEvents: { halign: 'center' },
-                events1: { halign: 'center' },
-                positive1: { halign: 'center' },
-                events2: { halign: 'center' },
-                positive2: { halign: 'center' },
-                events30: { halign: 'center' },
-                positive30: { halign: 'center' },
+                0: { halign: 'left' },
+                1: { halign: 'center' },
+                2: { halign: 'center' },
+                3: { halign: 'center' },
+                4: { halign: 'center' },
+                5: { halign: 'center' },
+                6: { halign: 'center' },
+                7: { halign: 'center' },
+                8: { halign: 'center' },
             },
             didParseCell: function(hookData: any) {
-                 if (hookData.row.index === body.length - 1) { // Last row (Totals)
+                 if (hookData.section === 'body' && hookData.row.index === body.length - 1) { // Last row (Totals)
                     hookData.cell.styles.fontStyle = 'bold';
                     hookData.cell.styles.fillColor = [229, 231, 235]; // gray-200
                  }

@@ -47,10 +47,11 @@ const parseDate = (dateInput: any): Date | null => {
 };
 
 
-// Robust, simplified file parser that delegates format detection to the library.
+// More robust file parser that handles CSV and XLSX differently based on extension.
 const parseFile = (file: File): Promise<any[][]> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
+        const isCSV = file.name.toLowerCase().endsWith('.csv');
 
         reader.onload = (event) => {
             try {
@@ -59,10 +60,8 @@ const parseFile = (file: File): Promise<any[][]> => {
                 }
 
                 const data = event.target.result;
-                
-                // The XLSX library can intelligently handle different file types (XLSX, CSV)
-                // when reading from an ArrayBuffer. This is more robust than manual detection.
-                const workbook = XLSX.read(data, { type: 'array' });
+                const readOptions = { type: isCSV ? 'string' : 'array' };
+                const workbook = XLSX.read(data, readOptions);
 
                 if (!workbook || !workbook.SheetNames.length) {
                     return reject(new Error(`File "${file.name}" contains no readable sheets.`));
@@ -86,8 +85,12 @@ const parseFile = (file: File): Promise<any[][]> => {
 
         reader.onerror = () => reject(new Error(`Error reading file "${file.name}".`));
 
-        // Always read the file as an ArrayBuffer and let the library handle parsing.
-        reader.readAsArrayBuffer(file);
+        // Use readAsText for CSVs and readAsArrayBuffer for others (like XLSX)
+        if (isCSV) {
+            reader.readAsText(file);
+        } else {
+            reader.readAsArrayBuffer(file);
+        }
     });
 };
 
