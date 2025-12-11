@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { UploadIcon } from './icons/UploadIcon';
 
@@ -42,35 +43,53 @@ export const FileUpload: React.FC<FileUploadProps> = ({ id, title, description, 
     };
 
     return (
-        <div>
-            <h3 className="text-lg font-medium leading-6 text-gray-900">{title}</h3>
+        <div className="flex flex-col h-full">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">{title}</h3>
             <label
                 htmlFor={id}
                 onDragEnter={handleDragEnter}
                 onDragLeave={handleDragLeave}
                 onDragOver={handleDragOver}
                 onDrop={handleDrop}
-                className={`mt-2 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md cursor-pointer transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50' : ''}`}
+                className={`flex-grow flex flex-col justify-center px-6 pt-8 pb-8 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 group
+                    ${isDragging 
+                        ? 'border-teal-500 bg-teal-50' 
+                        : fileName 
+                            ? 'border-teal-200 bg-teal-50/30 hover:bg-teal-50/50' 
+                            : 'border-slate-300 hover:border-teal-400 hover:bg-slate-50'
+                    }`}
             >
-                <div className="space-y-1 text-center">
-                    <UploadIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    <div className="flex text-sm text-gray-600">
-                        <span className="relative bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-indigo-500">
-                            <span>{fileName ? 'Replace file' : 'Upload a file'}</span>
-                            <input
-                                id={id}
-                                name={id}
-                                type="file"
-                                accept=".csv,.xlsx"
-                                className="sr-only"
-                                onChange={(e) => handleFileChange(e.target.files)}
-                            />
-                        </span>
-                        <p className="pl-1">or drag and drop</p>
+                <div className="space-y-2 text-center">
+                    <div className={`mx-auto h-12 w-12 flex items-center justify-center rounded-full transition-colors ${isDragging || fileName ? 'bg-teal-100 text-teal-600' : 'bg-slate-100 text-slate-400 group-hover:bg-teal-50 group-hover:text-teal-500'}`}>
+                        {fileName ? (
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        ) : (
+                            <UploadIcon className="h-6 w-6" />
+                        )}
                     </div>
-                    <p className="text-xs text-gray-500">{description}</p>
-                    {fileName && <p className="text-sm font-semibold text-green-600 pt-2">{fileName}</p>}
+                    
+                    <div className="text-sm text-slate-600">
+                        {fileName ? (
+                             <p className="font-semibold text-teal-700 break-all">{fileName}</p>
+                        ) : (
+                            <>
+                                <span className="font-medium text-teal-600 hover:text-teal-500">Upload a file</span>
+                                <span className="text-slate-400"> or drag and drop</span>
+                            </>
+                        )}
+                    </div>
+                    {!fileName && <p className="text-xs text-slate-400 px-4 leading-relaxed">{description}</p>}
                 </div>
+                <input
+                    id={id}
+                    name={id}
+                    type="file"
+                    accept=".csv,.xlsx"
+                    className="sr-only"
+                    onChange={(e) => handleFileChange(e.target.files)}
+                />
             </label>
         </div>
     );
