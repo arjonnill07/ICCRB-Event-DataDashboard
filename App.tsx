@@ -53,32 +53,35 @@ const App: React.FC = () => {
     }, [summaryData, reportGeneratedAt]);
 
     return (
-        <div className="min-h-screen bg-gray-50 text-gray-800 antialiased">
-            <header className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-3xl font-bold leading-tight text-gray-900">
-                        Clinical Trial Data Dashboard
+        <div className="min-h-screen bg-gray-50 text-gray-800 antialiased flex flex-col">
+            <header className="bg-white shadow-sm border-b border-gray-200">
+                <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 text-center">
+                    <h1 className="text-2xl md:text-3xl font-bold leading-tight text-gray-900 mb-2">
+                        Clinical Trial Data Dashboard of Phase III clinical trial of the S. Flexneri–S. Sonnei bivalent conjugate vaccine
                     </h1>
-                    <p className="mt-1 text-sm text-gray-500">
-                        Upload participant and diarrheal event data to generate a summary report.
+                    <p className="text-lg font-semibold text-indigo-700 mb-4">
+                        Protocol No: PR-24079
+                    </p>
+                    <p className="text-sm text-gray-500 max-w-2xl mx-auto">
+                        Upload participant and diarrheal event data to generate a comprehensive summary report.
                     </p>
                 </div>
             </header>
             
-            <main className="py-10">
+            <main className="py-10 flex-grow">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
                     <div className="bg-white p-8 rounded-lg shadow-lg">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
                             <FileUpload 
                                 id="participants-file"
                                 title="Participant Information" 
-                                description="XLSX with columns: 'Site Name', 'Randomization Number', 'Visit Name', 'Actual Date'"
+                                description="XLSX with columns: 'Site Name', 'Randomization Number', 'Visit Name', 'Actual Date', 'Age'"
                                 onFileSelect={setParticipantFile}
                             />
                             <FileUpload 
                                 id="diarrhea-file"
                                 title="Diarrheal Events" 
-                                description="CSV or XLSX with columns: 'Rand# ID', 'Collection Date', 'Result'"
+                                description="CSV or XLSX with columns: 'Rand# ID', 'Collection Date', 'Result', 'Shigella Strain', 'RT-PCR', 'Age'"
                                 onFileSelect={setDiarrheaFile}
                             />
                         </div>
@@ -149,6 +152,25 @@ const App: React.FC = () => {
                     )}
                 </div>
             </main>
+
+            <footer className="bg-white border-t border-gray-200 mt-auto">
+                <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                    <div className="flex flex-col items-center justify-center space-y-2 text-sm text-gray-500 text-center">
+                        <p>&copy; 2025 Immunibiology, Nutritional and Toxicology Lab. All rights reserved.</p>
+                        <p>
+                            Principal Investigator: Rubhana Raqib | Sponsor: Chongqing Zhifei Biological Products Co., Ltd | Developed & Maintained by{' '}
+                            <a 
+                                href="https://bd.linkedin.com/in/arjon-golder" 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-indigo-600 hover:text-indigo-500 hover:underline font-medium"
+                            >
+                                Arjon
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 };
