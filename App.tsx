@@ -124,7 +124,7 @@ const App: React.FC = () => {
                             <p className="text-white font-bold">Chongqing Zhifei Biological Products</p>
                         </div>
                         <div className="text-left">
-                            <p className="text-[10px] text-slate-600 font-black uppercase">Project Supervisor</p>
+                            <p className="text-[10px] text-slate-600 font-black uppercase">System Development Supervisor</p>
                             <p className="text-white font-bold">Md. Ahsanul Haq</p>
                         </div>
                         <div className="text-left">
