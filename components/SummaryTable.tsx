@@ -1,237 +1,152 @@
 
 import React from 'react';
-import type { SummaryData, SiteSummary, StrainSummary, PcrSummary, AgeSummary } from '../types';
+import type { SummaryData } from '../types';
 import { formatPercent } from '../utils/formatter';
 
-// Helper for row styles
-const rowBaseClass = "border-b border-slate-100 hover:bg-slate-50 transition-colors";
-const totalRowClass = "bg-slate-200 font-bold border-t-2 border-slate-300 text-slate-900";
-const cellClass = "px-6 py-4 whitespace-nowrap text-sm text-slate-700 text-center tabular-nums";
-const firstCellClass = "px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 text-left";
-
-const TableRow: React.FC<{ item: SiteSummary, isTotal?: boolean }> = ({ item, isTotal = false }) => (
-    <tr className={isTotal ? totalRowClass : rowBaseClass}>
-        <td className={firstCellClass}>{item.siteName}</td>
-        <td className={cellClass}>{item.enrollment}</td>
-        <td className={cellClass}>
-            {item.totalDiarrhealEvents} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.totalDiarrhealEvents, item.enrollment)})</span>
-        </td>
-        <td className={cellClass}>{item.after1stDoseEvents}</td>
-        <td className={cellClass}>
-            {item.after1stDoseCulturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after1stDoseCulturePositive, item.after1stDoseEvents)})</span>
-        </td>
-        <td className={cellClass}>{item.after2ndDoseEvents}</td>
-        <td className={cellClass}>
-            {item.after2ndDoseCulturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after2ndDoseCulturePositive, item.after2ndDoseEvents)})</span>
-        </td>
-        <td className={cellClass}>{item.after30Days2ndDoseEvents}</td>
-        <td className={cellClass}>
-            {item.after30Days2ndDoseCulturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after30Days2ndDoseCulturePositive, item.after30Days2ndDoseEvents)})</span>
-        </td>
-    </tr>
-);
-
-const PcrRow: React.FC<{ item: PcrSummary, isTotal?: boolean }> = ({ item, isTotal = false }) => (
-    <tr className={isTotal ? totalRowClass : rowBaseClass}>
-        <td className={firstCellClass}>{item.siteName}</td>
-        <td className={cellClass}>{item.totalTests}</td>
-        <td className={cellClass}>
-             {item.totalPositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.totalPositive, item.totalTests)})</span>
-        </td>
-        <td className={cellClass}>{item.after1stDoseTests}</td>
-        <td className={cellClass}>
-            {item.after1stDosePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after1stDosePositive, item.after1stDoseTests)})</span>
-        </td>
-        <td className={cellClass}>{item.after2ndDoseTests}</td>
-        <td className={cellClass}>
-            {item.after2ndDosePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after2ndDosePositive, item.after2ndDoseTests)})</span>
-        </td>
-        <td className={cellClass}>{item.after30DaysTests}</td>
-        <td className={cellClass}>
-            {item.after30DaysPositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after30DaysPositive, item.after30DaysTests)})</span>
-        </td>
-    </tr>
-);
-
-const AgeRow: React.FC<{ item: AgeSummary }> = ({ item }) => (
-    <tr className={rowBaseClass}>
-        <td className={firstCellClass}>{item.ageGroup}</td>
-        <td className={cellClass}>
-            {item.totalEvents}
-        </td>
-        <td className={cellClass}>
-             {item.culturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.culturePositive, item.totalEvents)})</span>
-        </td>
-        <td className={cellClass}>{item.after1stDoseEvents}</td>
-        <td className={cellClass}>
-            {item.after1stDoseCulturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after1stDoseCulturePositive, item.after1stDoseEvents)})</span>
-        </td>
-        <td className={cellClass}>{item.after2ndDoseEvents}</td>
-        <td className={cellClass}>
-            {item.after2ndDoseCulturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after2ndDoseCulturePositive, item.after2ndDoseEvents)})</span>
-        </td>
-        <td className={cellClass}>{item.after30Days2ndDoseEvents}</td>
-        <td className={cellClass}>
-            {item.after30Days2ndDoseCulturePositive} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after30Days2ndDoseCulturePositive, item.after30Days2ndDoseEvents)})</span>
-        </td>
-    </tr>
-);
-
-interface StrainTotals {
-    total: number;
-    after1: number;
-    after2: number;
-    after30: number;
-}
-
-const StrainRow: React.FC<{ item: StrainSummary, totals: StrainTotals }> = ({ item, totals }) => (
-    <tr className={rowBaseClass}>
-        <td className={firstCellClass}>{item.strainName}</td>
-        <td className={cellClass}>
-            {item.total} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.total, totals.total)})</span>
-        </td>
-        <td className={cellClass}>
-            {item.after1stDose} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after1stDose, totals.after1)})</span>
-        </td>
-        <td className={cellClass}>
-            {item.after2ndDose} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after2ndDose, totals.after2)})</span>
-        </td>
-        <td className={cellClass}>
-            {item.after30Days2ndDose} <span className="text-slate-500 text-xs ml-1">({formatPercent(item.after30Days2ndDose, totals.after30)})</span>
-        </td>
-    </tr>
-);
-
-// Shared Header Component
-const TableHeader: React.FC<{ 
-    title: string, 
-    firstCol: string, 
-    secondCol: string, 
-    thirdCol: string 
-}> = ({ title, firstCol, secondCol, thirdCol }) => (
-    <thead className="bg-slate-800 text-white">
-        <tr>
-            <th rowSpan={2} className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider align-middle border-r border-slate-700">{firstCol}</th>
-            <th rowSpan={2} className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle border-r border-slate-700">{secondCol}</th>
-            <th rowSpan={2} className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider align-middle border-r border-slate-700">{thirdCol}</th>
-            <th colSpan={2} className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider border-b border-r border-slate-700 bg-slate-900/50">After 1<sup>st</sup> dose</th>
-            <th colSpan={2} className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider border-b border-r border-slate-700 bg-slate-900/50">After 2<sup>nd</sup> dose</th>
-            <th colSpan={2} className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-wider border-b border-slate-700 bg-slate-900/50">After 30 days of 2<sup>nd</sup> dose</th>
-        </tr>
-        <tr>
-            <th className="px-6 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-slate-700 text-slate-300">Events/Tested</th>
-            <th className="px-6 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-slate-700 text-slate-300">Positive</th>
-            <th className="px-6 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-slate-700 text-slate-300">Events/Tested</th>
-            <th className="px-6 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-slate-700 text-slate-300">Positive</th>
-            <th className="px-6 py-2 text-center text-xs font-medium uppercase tracking-wider border-r border-slate-700 text-slate-300">Events/Tested</th>
-            <th className="px-6 py-2 text-center text-xs font-medium uppercase tracking-wider text-slate-300">Positive</th>
-        </tr>
-    </thead>
-);
+const bar = (num: number, den: number, color: string) => {
+    const pct = den > 0 ? (num / den) * 100 : 0;
+    return (
+        <div className="w-20 h-1.5 bg-slate-200 rounded-full mt-1.5 overflow-hidden inline-block align-middle ml-2">
+            <div className={`h-full ${color} rounded-full transition-all duration-1000 shadow-sm`} style={{ width: `${pct}%` }}></div>
+        </div>
+    );
+};
 
 export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
-    const strainTotals: StrainTotals = data.strains.reduce((acc, curr) => ({
-        total: acc.total + curr.total,
-        after1: acc.after1 + curr.after1stDose,
-        after2: acc.after2 + curr.after2ndDose,
-        after30: acc.after30 + curr.after30Days2ndDose
-    }), { total: 0, after1: 0, after2: 0, after30: 0 });
-
     return (
-        <div className="flex flex-col space-y-16">
-            {/* Site Summary Table */}
-            <div>
-                 <div className="mb-4 flex items-center">
-                    <div className="h-6 w-1 bg-teal-500 rounded mr-3"></div>
-                    <h3 className="text-xl font-bold text-slate-800">Site Enrollment & Events</h3>
-                 </div>
-                <div className="overflow-x-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <TableHeader 
-                            title="Site Summary" 
-                            firstCol="Site Name" 
-                            secondCol="Enrollment" 
-                            thirdCol="Total Diarrhoeal Events" 
-                        />
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {data.sites.map(site => <TableRow key={site.siteName} item={site} />)}
-                            <TableRow item={data.totals} isTotal={true} />
-                        </tbody>
-                    </table>
+        <div className="space-y-16 pb-20">
+            {/* Main Site Table */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
+                    <div className="w-3 h-7 bg-teal-700 rounded-full"></div>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Site Enrollment & Case Breakdown</h3>
                 </div>
-            </div>
-
-            {/* Age wise diarrheal events Table */}
-             <div>
-                 <div className="mb-4 flex items-center">
-                    <div className="h-6 w-1 bg-teal-500 rounded mr-3"></div>
-                    <h3 className="text-xl font-bold text-slate-800">Age Distribution Analysis</h3>
-                 </div>
-                 <div className="overflow-x-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <TableHeader 
-                            title="Age Distribution" 
-                            firstCol="Age Group" 
-                            secondCol="Total Events" 
-                            thirdCol="Total Culture Positive" 
-                        />
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {data.ageDistribution.map(item => <AgeRow key={item.ageGroup} item={item} />)}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* RT-PCR Results Table */}
-            <div>
-                 <div className="mb-4 flex items-center">
-                    <div className="h-6 w-1 bg-teal-500 rounded mr-3"></div>
-                    <h3 className="text-xl font-bold text-slate-800">RT-PCR Results</h3>
-                 </div>
-                 <div className="overflow-x-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <TableHeader 
-                            title="RT-PCR" 
-                            firstCol="Site Name" 
-                            secondCol="Total Tests" 
-                            thirdCol="Total Positive" 
-                        />
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {data.pcrSites.map(site => <PcrRow key={site.siteName} item={site} />)}
-                            <PcrRow item={data.pcrTotals} isTotal={true} />
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            {/* Serotype/Serogroup Distribution Table */}
-            <div>
-                <div className="mb-4 flex items-center">
-                    <div className="h-6 w-1 bg-teal-500 rounded mr-3"></div>
-                    <h3 className="text-xl font-bold text-slate-800">Serotype/Serogroup Distribution <span className="text-slate-500 font-normal text-base">(Culture Positive Cases)</span></h3>
-                </div>
-                <div className="overflow-x-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-800 text-white">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider border-r border-slate-700">Serotype/Serogroup</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider border-r border-slate-700">Total Positive Cases</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider border-r border-slate-700">After 1<sup>st</sup> dose</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider border-r border-slate-700">After 2<sup>nd</sup> dose</th>
-                                <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider">After 30 days of 2<sup>nd</sup> dose</th>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-900 text-white">
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle border-r border-slate-700">Clinical Site</th>
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700 bg-slate-800">Enrolled</th>
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700">Total Events</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 1</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 2</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b bg-slate-900">Post-30D Follow-up</th>
+                            </tr>
+                            <tr className="bg-slate-700 text-slate-100">
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Events</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Positives (%)</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Events</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Positives (%)</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Events</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-center">Positives (%)</th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {data.strains.length > 0 ? (
-                                data.strains.map(strain => <StrainRow key={strain.strainName} item={strain} totals={strainTotals} />)
-                            ) : (
-                                <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-slate-500 italic">No culture positive cases with strain information found.</td>
-                                </tr>
-                            )}
+                        <tbody className="divide-y divide-slate-300">
+                            {[...data.sites, data.totals].map((s, idx) => {
+                                const isTotal = idx === data.sites.length;
+                                return (
+                                    <tr key={s.siteName} className={`${isTotal ? 'bg-slate-100 font-black' : 'hover:bg-slate-50 transition-colors'}`}>
+                                        <td className="px-6 py-5 text-base font-black text-slate-950 border-r border-slate-200">{s.siteName}</td>
+                                        <td className="px-6 py-5 text-lg text-center border-r border-slate-200 font-black text-slate-900 bg-slate-50/50">{s.enrollment}</td>
+                                        <td className="px-6 py-5 text-base text-center border-r border-slate-200 font-bold">
+                                            <div className="text-slate-950">{s.totalDiarrhealEvents}</div>
+                                            <div className="text-[11px] text-slate-500 font-black uppercase tracking-tighter mt-0.5">{formatPercent(s.totalDiarrhealEvents, s.enrollment)} Rate</div>
+                                        </td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-teal-50/30 text-slate-900 font-bold">{s.after1stDoseEvents}</td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-teal-50/50">
+                                            <div className="text-lg font-black text-teal-950">{s.after1stDoseCulturePositive}</div>
+                                            <div className="text-[11px] text-teal-800 font-black">{formatPercent(s.after1stDoseCulturePositive, s.after1stDoseEvents)}</div>
+                                            {bar(s.after1stDoseCulturePositive, s.after1stDoseEvents, 'bg-teal-700')}
+                                        </td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-amber-50/30 text-slate-900 font-bold">{s.after2ndDoseEvents}</td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-amber-50/50">
+                                            <div className="text-lg font-black text-amber-950">{s.after2ndDoseCulturePositive}</div>
+                                            <div className="text-[11px] text-amber-800 font-black">{formatPercent(s.after2ndDoseCulturePositive, s.after2ndDoseEvents)}</div>
+                                            {bar(s.after2ndDoseCulturePositive, s.after2ndDoseEvents, 'bg-amber-700')}
+                                        </td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-rose-50/30 text-slate-900 font-bold">{s.after30Days2ndDoseEvents}</td>
+                                        <td className="px-4 py-5 text-center bg-rose-50/50">
+                                            <div className="text-lg font-black text-rose-950">{s.after30Days2ndDoseCulturePositive}</div>
+                                            <div className="text-[11px] text-rose-800 font-black">{formatPercent(s.after30Days2ndDoseCulturePositive, s.after30Days2ndDoseEvents)}</div>
+                                            {bar(s.after30Days2ndDoseCulturePositive, s.after30Days2ndDoseEvents, 'bg-rose-700')}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* Age Stratified Table */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
+                    <div className="w-3 h-7 bg-indigo-700 rounded-full"></div>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Age Distribution Analytics</h3>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest">
+                            <tr>
+                                <th className="px-6 py-5">Age Bracket</th>
+                                <th className="px-4 py-5 text-center">Total Events</th>
+                                <th className="px-4 py-5 text-center">Total Positives</th>
+                                <th className="px-4 py-5 text-center bg-teal-900">Post-Dose 1 Pos</th>
+                                <th className="px-4 py-5 text-center bg-amber-900">Post-Dose 2 Pos</th>
+                                <th className="px-4 py-5 text-center bg-rose-900">Post-30D Pos</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-300">
+                            {data.ageDistribution.map(a => (
+                                <tr key={a.ageGroup} className="hover:bg-slate-50 transition-colors">
+                                    <td className="px-6 py-5 text-base font-black text-slate-950">{a.ageGroup}</td>
+                                    <td className="px-4 py-5 text-base text-center text-slate-900 font-bold">{a.totalEvents}</td>
+                                    <td className="px-4 py-5 text-center">
+                                        <div className="text-lg font-black text-slate-950">{a.culturePositive}</div>
+                                        <div className="text-[11px] text-slate-600 font-black">{formatPercent(a.culturePositive, a.totalEvents)}</div>
+                                        {bar(a.culturePositive, a.totalEvents, 'bg-indigo-700')}
+                                    </td>
+                                    <td className="px-4 py-5 text-lg text-center text-teal-950 font-black bg-teal-50/40">{a.after1stDoseCulturePositive}</td>
+                                    <td className="px-4 py-5 text-lg text-center text-amber-950 font-black bg-amber-50/40">{a.after2ndDoseCulturePositive}</td>
+                                    <td className="px-4 py-5 text-lg text-center text-rose-950 font-black bg-rose-50/40">{a.after30Days2ndDoseCulturePositive}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Strain Distribution */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
+                    <div className="w-3 h-7 bg-slate-900 rounded-full"></div>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Top Serotype Prevalence</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-slate-200">
+                    {data.strains.slice(0, 3).map(s => (
+                        <div key={s.strainName} className="p-8 hover:bg-slate-50 transition-colors">
+                            <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2">{s.strainName}</p>
+                            <p className="text-4xl font-black text-slate-950">{s.total} <span className="text-sm text-slate-400 font-medium ml-1">Confirmed</span></p>
+                            <div className="mt-6 space-y-3">
+                                <div className="flex justify-between items-center text-sm font-black">
+                                    <span className="text-teal-900 uppercase tracking-tighter">Post-Dose 1</span>
+                                    <span className="bg-teal-100 px-3 py-1 rounded-full text-teal-950">{s.after1stDose}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-sm font-black">
+                                    <span className="text-amber-900 uppercase tracking-tighter">Post-Dose 2</span>
+                                    <span className="bg-amber-100 px-3 py-1 rounded-full text-amber-950">{s.after2ndDose}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-sm font-black">
+                                    <span className="text-rose-900 uppercase tracking-tighter">Post-30D</span>
+                                    <span className="bg-rose-100 px-3 py-1 rounded-full text-rose-950">{s.after30Days2ndDose}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                {data.strains.length === 0 && (
+                    <div className="p-12 text-center text-slate-400 font-medium italic">Waiting for positive culture data points.</div>
+                )}
             </div>
         </div>
     );

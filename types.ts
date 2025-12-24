@@ -12,9 +12,12 @@ export interface DiarrhealEvent {
   event_date: string;
   culture_positive: string;
   episode_id: string;
+  culture_no: string;
   shigella_strain?: string;
   pcr_result?: string;
   age_months?: number;
+  site_fallback?: string;
+  pcr_no_string?: string;
 }
 
 export interface SiteSummary {
@@ -77,4 +80,5 @@ export interface SummaryData {
     pcrSites: PcrSummary[];
     pcrTotals: PcrSummary;
     ageDistribution: AgeSummary[];
+    unmappedEvents: number; // Tracks events where participant wasn't found in enrollment file
 }
