@@ -140,7 +140,9 @@ const App: React.FC = () => {
                             </a>
                         </div>
                     </div>
-                    <p className="text-[10px] text-slate-700 font-medium">Developed and maintained by Arjon Golder</p>
+                    <p className="text-[10px] text-slate-700 font-medium">
+                        Developed and maintained by <a href="https://bd.linkedin.com/in/arjon-golder" target="_blank" rel="noopener noreferrer" className="hover:text-teal-500 transition-colors">Arjon Golder</a>
+                    </p>
                 </div>
             </footer>
         </div>
