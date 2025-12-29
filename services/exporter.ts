@@ -204,7 +204,8 @@ export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Summary Report");
-    XLSX.writeFile(wb, "Clinical_Trial_Summary_Report.xlsx");
+    // Updated filename to match requested title
+    XLSX.writeFile(wb, "Summary_Report_Conjugate_vaccine_PR-24079_icddrb.xlsx");
 };
 
 export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
@@ -219,12 +220,21 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
             throw new Error("jsPDF-AutoTable plugin not loaded correctly. The 'autoTable' method is missing.");
         }
 
-        doc.setFontSize(18);
-        doc.text("Clinical Trial Summary Report", 40, 50);
+        // Updated Title Section
+        const titleLine1 = "Summary Report: Conjugate vaccine (PR-24079)";
+        const titleLine2 = "icddr,b, Mohakhali, Dhaka, Bangladesh";
+        
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.text(titleLine1, 40, 40);
+        
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "normal");
+        doc.text(titleLine2, 40, 58);
 
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setTextColor(100);
-        doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 40, 65);
+        doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 40, 75);
 
         const commonStyles = {
             cellPadding: 3,
@@ -259,7 +269,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
         (doc as any).autoTable({
             head: head,
             body: body,
-            startY: 75,
+            startY: 90, // Adjusted startY to accommodate multi-line title
             theme: 'grid',
             headStyles: commonHeadStyles,
             styles: commonStyles,
@@ -409,7 +419,8 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
             }
         });
 
-        doc.save('Clinical_Trial_Summary_Report.pdf');
+        // Updated filename to match requested title
+        doc.save('Summary_Report_Conjugate_vaccine_PR-24079_icddrb.pdf');
     } catch (error) {
         console.error("Failed to generate PDF:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
