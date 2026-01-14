@@ -25,6 +25,7 @@ export interface SiteSummary {
   siteName: string;
   enrollment: number;
   totalDiarrhealEvents: number;
+  participantsWithEvents: number; // Added field
 
   after1stDoseEvents: number;
   after1stDoseCulturePositive: number;
