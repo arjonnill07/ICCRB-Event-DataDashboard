@@ -3,7 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { SummaryTable } from './components/SummaryTable';
 import { processFiles } from './services/dataProcessor';
-import { exportToPDF, exportToXLSX } from './services/exporter';
+import { exportToPDF, exportToXLSX, exportDetailedToXLSX } from './services/exporter';
 import type { SummaryData } from './types';
 
 const StatCard: React.FC<{ title: string; value: string | number; subValue?: string; color: string }> = ({ title, value, subValue, color }) => (
@@ -21,6 +21,7 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [reportGeneratedAt, setReportGeneratedAt] = useState<Date | null>(null);
+    const [selectedExportSite, setSelectedExportSite] = useState<string>("All Sites");
 
     const handleGenerateReport = useCallback(async () => {
         if (!participantFile || !diarrheaFile) {
@@ -42,6 +43,7 @@ const App: React.FC = () => {
     
     const handleExportPDF = () => summaryData && reportGeneratedAt && exportToPDF(summaryData, reportGeneratedAt);
     const handleExportXLSX = () => summaryData && reportGeneratedAt && exportToXLSX(summaryData, reportGeneratedAt);
+    const handleExportDetailed = () => summaryData && exportDetailedToXLSX(summaryData, selectedExportSite);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 antialiased flex flex-col font-sans">
@@ -94,14 +96,39 @@ const App: React.FC = () => {
                                 </div>
                             )}
 
-                             <div className="flex flex-col sm:flex-row justify-between items-end mb-8 gap-4">
-                                <div>
+                             <div className="flex flex-col sm:flex-row justify-between items-end mb-8 gap-6">
+                                <div className="flex-1">
                                     <h2 className="text-3xl font-black text-slate-900 tracking-tight">Clinical Summary Report</h2>
                                     <p className="text-sm text-slate-500 mt-1 font-medium italic">Snapshot: {reportGeneratedAt?.toLocaleString()}</p>
                                 </div>
-                                <div className="flex gap-3">
-                                    <button onClick={handleExportXLSX} className="flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:text-emerald-600 transition-all hover:border-emerald-200 shadow-sm"><svg className="w-4 h-4 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> Export Excel</button>
-                                    <button onClick={handleExportPDF} className="flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:text-rose-600 transition-all hover:border-rose-200 shadow-sm"><svg className="w-4 h-4 mr-2 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> Export PDF</button>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Export Scope</label>
+                                        <select 
+                                            value={selectedExportSite} 
+                                            onChange={(e) => setSelectedExportSite(e.target.value)}
+                                            className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all cursor-pointer shadow-sm"
+                                        >
+                                            <option value="All Sites">All Sites Combined</option>
+                                            {summaryData.sites.map(s => (
+                                                <option key={s.siteName} value={s.siteName}>{s.siteName}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 pt-5">
+                                        <button onClick={handleExportDetailed} className="flex items-center px-5 py-2.5 bg-teal-600 rounded-lg text-sm font-bold text-white hover:bg-teal-700 transition-all shadow-sm">
+                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2a4 4 0 00-4-4H5m14 6l-3-3m3 3l3-3m-3 3V10" /></svg> 
+                                            Detailed XLSX Report
+                                        </button>
+                                        <button onClick={handleExportXLSX} className="flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:text-emerald-600 transition-all hover:border-emerald-200 shadow-sm">
+                                            <svg className="w-4 h-4 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> 
+                                            Excel Summary
+                                        </button>
+                                        <button onClick={handleExportPDF} className="flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:text-rose-600 transition-all hover:border-rose-200 shadow-sm">
+                                            <svg className="w-4 h-4 mr-2 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> 
+                                            PDF Summary
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                             <SummaryTable data={summaryData} />

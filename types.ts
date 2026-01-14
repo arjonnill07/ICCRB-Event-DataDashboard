@@ -13,7 +13,7 @@ export interface DiarrhealEvent {
   culture_positive: string;
   episode_id: string;
   culture_no: string;
-  stool_no: string; // Used for "RS" logic
+  stool_no: string;
   shigella_strain?: string;
   pcr_result?: string;
   age_months?: number;
@@ -21,11 +21,25 @@ export interface DiarrhealEvent {
   pcr_no_string?: string;
 }
 
+export interface DetailedParticipantEvent {
+  site: string;
+  participantId: string;
+  collectionDate: string;
+  doseCategory: string;
+  cultureResult: string;
+  shigellaStrain: string;
+  pcrResult: string;
+  ageMonths: string;
+  participantTotalEvents: number; // Added: Total episodes for this participant
+  stoolsCollected: number;        // Added: Stool samples in this clinical event
+  rectalSwabsCollected: number;   // Added: RS samples in this clinical event
+}
+
 export interface SiteSummary {
   siteName: string;
   enrollment: number;
   totalDiarrhealEvents: number;
-  participantsWithEvents: number; // Added field
+  participantsWithEvents: number;
 
   after1stDoseEvents: number;
   after1stDoseCulturePositive: number;
@@ -82,5 +96,6 @@ export interface SummaryData {
     pcrSites: PcrSummary[];
     pcrTotals: PcrSummary;
     ageDistribution: AgeSummary[];
-    unmappedEvents: number; // Tracks events where participant wasn't found in enrollment file
+    detailedEvents: DetailedParticipantEvent[];
+    unmappedEvents: number;
 }
