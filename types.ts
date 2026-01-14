@@ -13,6 +13,7 @@ export interface DiarrhealEvent {
   culture_positive: string;
   episode_id: string;
   culture_no: string;
+  stool_no: string; // Used for "RS" logic
   shigella_strain?: string;
   pcr_result?: string;
   age_months?: number;
