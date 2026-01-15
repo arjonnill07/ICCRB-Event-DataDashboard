@@ -175,7 +175,8 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
 
     return rows.slice(headerRowIndex + 1).filter(row => {
         const c = safeString(row[colMap.cNo]);
-        return c && /^\d|RS/i.test(c) && !c.toLowerCase().includes('total');
+        const dateVal = parseDate(row[colMap.date]); // Requirement: Only consider sample valid if it has collection date
+        return c && /^\d|RS/i.test(c) && !c.toLowerCase().includes('total') && dateVal !== null;
     }).map(row => {
         const randId = safeString(row[colMap.rand]);
         const siteByRange = getSiteFromId(randId);
@@ -285,10 +286,6 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
             const groupName = ageMonth > 0 ? getAgeGroup(ageMonth) : null;
             const ageSum = groupName ? ageSummaries.get(groupName) : null;
 
-            site.totalDiarrhealEvents++;
-            if (ageSum) ageSum.totalEvents++;
-
-            // Sample counting breakdown for this episode
             let stools = 0, swabs = 0;
             episode.forEach(e => {
                 const isRS = e.stool_no.toUpperCase().includes('RS') || e.culture_no.toUpperCase().includes('RS');
@@ -303,43 +300,60 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 return r.includes('pos') || r.includes('neg') || r === '1' || r === '0';
             });
 
-            if (anyCulturePos && ageSum) ageSum.culturePositive++;
-            if (anyPcrTested) {
-                pcrSum.totalTests++;
-                if (anyPcrPos) pcrSum.totalPositive++;
-            }
-
-            let doseCategory = "Baseline/Unmapped";
+            let doseCategory = "Baseline/Pre-Dose";
             if (p?.dose1_date && representative.event_date !== 'Unknown') {
-                const eD = new Date(representative.event_date), d1D = new Date(p.dose1_date);
+                const eD = new Date(representative.event_date);
+                const d1D = new Date(p.dose1_date);
+                const d2D = p.dose2_date ? new Date(p.dose2_date) : null;
+                const d2_30 = d2D ? addDays(d2D, 30) : null;
+                
+                // User Requirement: Same day of vaccination = post vaccination
                 if (eD >= d1D) {
-                    const d2D = p.dose2_date ? new Date(p.dose2_date) : null, d2_30 = d2D ? addDays(d2D, 30) : null;
-                    const cat: 'after1' | 'after2' | 'after30' = (!d2D || eD < d2D) ? 'after1' : (d2_30 && eD < d2_30) ? 'after2' : 'after30';
-                    doseCategory = cat === 'after1' ? "After 1st Dose" : cat === 'after2' ? "After 2nd Dose" : "After 30 Days of 2nd Dose";
+                    // This event is clinically relevant (Post-Vax)
+                    site.totalDiarrhealEvents++;
+                    if (ageSum) ageSum.totalEvents++;
+                    if (anyCulturePos && ageSum) ageSum.culturePositive++;
+                    if (anyPcrTested) {
+                        pcrSum.totalTests++;
+                        if (anyPcrPos) pcrSum.totalPositive++;
+                    }
 
-                    if (cat === 'after1') {
+                    // Categorization with same-day preference
+                    const isAfter30 = (d2_30 && eD >= d2_30);
+                    const isAfterD2 = (d2D && eD >= d2D && !isAfter30);
+                    const isAfterD1 = (!isAfterD2 && !isAfter30);
+
+                    if (isAfterD1) {
+                        doseCategory = "After 1st Dose";
                         site.after1stDoseEvents++;
                         if (ageSum) ageSum.after1stDoseEvents++;
                         if (anyCulturePos) { site.after1stDoseCulturePositive++; if (ageSum) ageSum.after1stDoseCulturePositive++; }
                         if (anyPcrTested) { pcrSum.after1stDoseTests++; if (anyPcrPos) pcrSum.after1stDosePositive++; }
-                    } else if (cat === 'after2') {
+                    } else if (isAfterD2) {
+                        doseCategory = "After 2nd Dose";
                         site.after2ndDoseEvents++;
                         if (ageSum) ageSum.after2ndDoseEvents++;
                         if (anyCulturePos) { site.after2ndDoseCulturePositive++; if (ageSum) ageSum.after2ndDoseCulturePositive++; }
                         if (anyPcrTested) { pcrSum.after2ndDoseTests++; if (anyPcrPos) pcrSum.after2ndDosePositive++; }
-                    } else {
+                    } else if (isAfter30) {
+                        doseCategory = "After 30 Days of 2nd Dose";
                         site.after30Days2ndDoseEvents++;
                         if (ageSum) ageSum.after30Days2ndDoseEvents++;
                         if (anyCulturePos) { site.after30Days2ndDoseCulturePositive++; if (ageSum) ageSum.after30Days2ndDoseCulturePositive++; }
                         if (anyPcrTested) { pcrSum.after30DaysTests++; if (anyPcrPos) pcrSum.after30DaysPositive++; }
                     }
+
                     if (anyCulturePos) {
                         const sN = primaryStrain || "Unspecified";
                         if (!strainSummaries.has(sN)) strainSummaries.set(sN, { strainName: sN, total: 0, after1stDose: 0, after2ndDose: 0, after30Days2ndDose: 0 });
                         const ss = strainSummaries.get(sN)!; ss.total++;
-                        if (cat === 'after1') ss.after1stDose++; else if (cat === 'after2') ss.after2ndDose++; else ss.after30Days2ndDose++;
+                        if (isAfterD1) ss.after1stDose++; else if (isAfterD2) ss.after2ndDose++; else if (isAfter30) ss.after30Days2ndDose++;
                     }
+                } else {
+                    doseCategory = "Pre-Dose 1 (Excluded from Summary)";
                 }
+            } else {
+                doseCategory = "Unmapped Dose Date (Excluded from Summary)";
             }
 
             detailedEvents.push({
