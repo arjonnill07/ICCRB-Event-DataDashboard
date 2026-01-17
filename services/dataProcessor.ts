@@ -1,5 +1,5 @@
 
-import type { Participant, DiarrhealEvent, SiteSummary, SummaryData, StrainSummary, PcrSummary, AgeSummary, DetailedParticipantEvent } from '../types';
+import type { Participant, DiarrhealEvent, SiteSummary, SummaryData, StrainSummary, PcrSummary, AgeSummary, DetailedParticipantEvent, RecurrentCase } from '../types';
 
 declare const XLSX: any;
 
@@ -175,7 +175,7 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
 
     return rows.slice(headerRowIndex + 1).filter(row => {
         const c = safeString(row[colMap.cNo]);
-        const dateVal = parseDate(row[colMap.date]); // Requirement: Only consider sample valid if it has collection date
+        const dateVal = parseDate(row[colMap.date]);
         return c && /^\d|RS/i.test(c) && !c.toLowerCase().includes('total') && dateVal !== null;
     }).map(row => {
         const randId = safeString(row[colMap.rand]);
@@ -215,6 +215,7 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
     const ageSummaries = new Map<string, AgeSummary>();
     const strainSummaries = new Map<string, StrainSummary>();
     const detailedEvents: DetailedParticipantEvent[] = [];
+    const recurrentCases: RecurrentCase[] = [];
     const uniqueParticipantsWithEventsBySite = new Map<string, Set<string>>();
     let unmappedEvents = 0;
 
@@ -269,6 +270,10 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
         }
 
         const numEpisodes = episodes.length;
+        const participantRecurrentHistory: RecurrentCase['history'] = [];
+        let participantCulturePositives = 0;
+        const seenStrains = new Set<string>();
+        let hasPersistentPathogen = false;
 
         episodes.forEach(episode => {
             const representative = episode[0];
@@ -300,6 +305,11 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 return r.includes('pos') || r.includes('neg') || r === '1' || r === '0';
             });
 
+            if (primaryStrain) {
+                if (seenStrains.has(primaryStrain)) hasPersistentPathogen = true;
+                seenStrains.add(primaryStrain);
+            }
+
             let doseCategory = "Baseline/Pre-Dose";
             if (p?.dose1_date && representative.event_date !== 'Unknown') {
                 const eD = new Date(representative.event_date);
@@ -307,9 +317,7 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 const d2D = p.dose2_date ? new Date(p.dose2_date) : null;
                 const d2_30 = d2D ? addDays(d2D, 30) : null;
                 
-                // User Requirement: Same day of vaccination = post vaccination
                 if (eD >= d1D) {
-                    // This event is clinically relevant (Post-Vax)
                     site.totalDiarrhealEvents++;
                     if (ageSum) ageSum.totalEvents++;
                     if (anyCulturePos && ageSum) ageSum.culturePositive++;
@@ -318,7 +326,6 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                         if (anyPcrPos) pcrSum.totalPositive++;
                     }
 
-                    // Categorization with same-day preference
                     const isAfter30 = (d2_30 && eD >= d2_30);
                     const isAfterD2 = (d2D && eD >= d2D && !isAfter30);
                     const isAfterD1 = (!isAfterD2 && !isAfter30);
@@ -356,6 +363,14 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 doseCategory = "Unmapped Dose Date (Excluded from Summary)";
             }
 
+            participantRecurrentHistory.push({
+                date: representative.event_date,
+                result: anyCulturePos ? "Positive" : "Negative",
+                stage: doseCategory,
+                strain: primaryStrain
+            });
+            if (anyCulturePos) participantCulturePositives++;
+
             detailedEvents.push({
                 site: site.siteName,
                 participantId: participantId,
@@ -370,6 +385,17 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 rectalSwabsCollected: swabs
             });
         });
+
+        if (numEpisodes > 1) {
+            recurrentCases.push({
+                participantId,
+                siteName: p?.site_name || rawEvents[0].site_fallback || "Other/Unknown",
+                totalEpisodes: numEpisodes,
+                culturePositives: participantCulturePositives,
+                hasPersistentPathogen,
+                history: participantRecurrentHistory.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            });
+        }
     });
 
     siteSummaries.forEach(s => { s.participantsWithEvents = uniqueParticipantsWithEventsBySite.get(s.siteName)?.size || 0; });
@@ -404,6 +430,7 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
         },
         ageDistribution: Array.from(ageSummaries.values()).filter(a => a.totalEvents > 0),
         detailedEvents: detailedEvents.sort((a, b) => a.site.localeCompare(b.site) || a.participantId.localeCompare(b.participantId)),
+        recurrentCases: recurrentCases.sort((a, b) => b.totalEpisodes - a.totalEpisodes),
         unmappedEvents
     };
 };

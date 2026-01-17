@@ -2,6 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { SummaryTable } from './components/SummaryTable';
+import { RecurrentCasesTable } from './components/RecurrentCasesTable';
 import { processFiles } from './services/dataProcessor';
 import { exportToPDF, exportToXLSX, exportDetailedToXLSX } from './services/exporter';
 import type { SummaryData } from './types';
@@ -86,15 +87,8 @@ const App: React.FC = () => {
                                 <StatCard title="Total Enrollment" value={summaryData.totals.enrollment} color="text-slate-900" subValue="Participants Randomized" />
                                 <StatCard title="Total Events" value={summaryData.totals.totalDiarrhealEvents} color="text-amber-600" subValue="Verified Diarrheal Episodes" />
                                 <StatCard title="Culture Positive" value={summaryData.totals.after1stDoseCulturePositive + summaryData.totals.after2ndDoseCulturePositive + summaryData.totals.after30Days2ndDoseCulturePositive} color="text-rose-600" subValue="Confirmed Shigella Cases" />
-                                <StatCard title="Data Integrity" value={summaryData.unmappedEvents === 0 ? "100%" : `${Math.max(0, 100 - (summaryData.unmappedEvents/summaryData.totals.totalDiarrhealEvents*100)).toFixed(1)}%`} color={summaryData.unmappedEvents === 0 ? "text-emerald-600" : "text-orange-500"} subValue={`${summaryData.unmappedEvents} Unlinked Records`} />
+                                <StatCard title="Recurrent Cases" value={summaryData.recurrentCases.length} color="text-blue-600" subValue="Participants with >1 Event" />
                             </div>
-
-                            {summaryData.unmappedEvents > 0 && (
-                                <div className="mb-8 p-4 bg-orange-50 border border-orange-200 rounded-lg text-orange-800 text-sm flex items-center">
-                                    <svg className="w-5 h-5 mr-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 102 0V7zm-1 8a1 1 0 100-2 1 1 0 000 2z" /></svg>
-                                    <strong>Data Discrepancy Found:</strong> {summaryData.unmappedEvents} events use IDs not found in the Enrollment file. Site attribution for these was pulled from the event log directly.
-                                </div>
-                            )}
 
                              <div className="flex flex-col sm:flex-row justify-between items-end mb-8 gap-6">
                                 <div className="flex-1">
@@ -131,7 +125,14 @@ const App: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
+                            
                             <SummaryTable data={summaryData} />
+                            
+                            {summaryData.recurrentCases.length > 0 && (
+                                <div className="mt-16">
+                                    <RecurrentCasesTable data={summaryData.recurrentCases} />
+                                </div>
+                            )}
                         </div>
                     )}
                     {error && <div className="p-6 bg-rose-50 border-l-8 border-rose-500 text-rose-900 rounded-xl shadow-lg mt-8 font-bold">{error}</div>}

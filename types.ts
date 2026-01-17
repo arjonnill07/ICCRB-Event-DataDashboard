@@ -30,9 +30,23 @@ export interface DetailedParticipantEvent {
   shigellaStrain: string;
   pcrResult: string;
   ageMonths: string;
-  participantTotalEvents: number; // Added: Total episodes for this participant
-  stoolsCollected: number;        // Added: Stool samples in this clinical event
-  rectalSwabsCollected: number;   // Added: RS samples in this clinical event
+  participantTotalEvents: number;
+  stoolsCollected: number;
+  rectalSwabsCollected: number;
+}
+
+export interface RecurrentCase {
+    participantId: string;
+    siteName: string;
+    totalEpisodes: number;
+    culturePositives: number;
+    hasPersistentPathogen: boolean;
+    history: { 
+        date: string; 
+        result: string; 
+        stage: string; 
+        strain?: string;
+    }[];
 }
 
 export interface SiteSummary {
@@ -97,5 +111,6 @@ export interface SummaryData {
     pcrTotals: PcrSummary;
     ageDistribution: AgeSummary[];
     detailedEvents: DetailedParticipantEvent[];
+    recurrentCases: RecurrentCase[];
     unmappedEvents: number;
 }
