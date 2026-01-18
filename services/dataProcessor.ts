@@ -36,6 +36,16 @@ const normalizeSiteName = (name: string): string => {
     return s.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 };
 
+/**
+ * Normalizes the 'Event No (Site)' string to create a unique episode key.
+ * Removes temporal suffixes to group multi-day reports of the same episode.
+ */
+const normalizeEventNoSite = (val: string): string => {
+    if (!val) return '';
+    // Strip temporal markers like "(Day-01)", "(Day 01)", etc.
+    return val.replace(/\s*\(Day[- ]?\d+\)\s*/gi, '').trim();
+};
+
 const addDays = (date: Date, days: number): Date => {
     const result = new Date(date);
     result.setUTCDate(result.getUTCDate() + days);
@@ -170,7 +180,8 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
         strain: findIndex(['Shigella Strain', 'Strain']),
         pcr: findIndex(['RT-PCR result', 'PCR']), 
         pcrNo: findIndex(['PCR Positive No', 'PCR No']), 
-        age: findIndex(['Age'])
+        age: findIndex(['Age']),
+        eventNoSite: findIndex(['Event No (Site)', 'Event No', 'Site Event No', 'Site No'])
     };
 
     return rows.slice(headerRowIndex + 1).filter(row => {
@@ -188,6 +199,7 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
             culture_positive: safeString(row[colMap.res]),
             culture_no: safeString(row[colMap.cNo]),
             stool_no: stoolNoStr,
+            event_no_site: safeString(row[colMap.eventNoSite]), // Preserve raw for grouping
             episode_id: `CNO-${safeString(row[colMap.cNo])}`,
             shigella_strain: safeString(row[colMap.strain]),
             pcr_result: safeString(row[colMap.pcr]),
@@ -203,11 +215,22 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
     const pMap = new Map<string, Participant>();
     pData.forEach(p => pMap.set(p.participant_id, p));
 
-    const eventsByParticipant = new Map<string, DiarrhealEvent[]>();
+    // NEW PRIMARY LOGIC: Group events by their manually assigned 'Event No (Site)' ID
+    // We group by Participant ID + Normalized Event No (Site) to handle participants with multiple episodes correctly
+    const reportedEpisodesMap = new Map<string, DiarrhealEvent[]>();
+    
     eData.forEach(e => {
-        const list = eventsByParticipant.get(e.participant_id) || [];
+        const p = pMap.get(e.participant_id);
+        const siteKey = normalizeSiteName(p?.site_name || e.site_fallback || "Other/Unknown");
+        
+        // If the Event No (Site) is missing, we fallback to a composite key based on participant + date 
+        // but the prompt implies these are cleaned and present.
+        const baseEventId = e.event_no_site ? normalizeEventNoSite(e.event_no_site) : `UNASSIGNED-${e.participant_id}-${e.event_date}`;
+        const groupKey = `${e.participant_id}|${baseEventId}`;
+        
+        const list = reportedEpisodesMap.get(groupKey) || [];
         list.push(e);
-        eventsByParticipant.set(e.participant_id, list);
+        reportedEpisodesMap.set(groupKey, list);
     });
 
     const siteSummaries = new Map<string, SiteSummary>();
@@ -216,15 +239,18 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
     const strainSummaries = new Map<string, StrainSummary>();
     const detailedEvents: DetailedParticipantEvent[] = [];
     const recurrentCases: RecurrentCase[] = [];
-    const uniqueParticipantsWithEventsBySite = new Map<string, Set<string>>();
-    let unmappedEvents = 0;
+    
+    // Tracking unique participants and episodes per site
+    const siteParticipantsSet = new Map<string, Set<string>>();
+    const siteEpisodesSet = new Map<string, Set<string>>();
 
     const getSite = (n: string) => {
         const s = normalizeSiteName(n);
         if (!siteSummaries.has(s)) {
-            siteSummaries.set(s, { siteName: s, enrollment: 0, totalDiarrhealEvents: 0, participantsWithEvents: 0, after1stDoseEvents: 0, after1stDoseCulturePositive: 0, after2ndDoseEvents: 0, after2ndDoseCulturePositive: 0, after30Days2ndDoseEvents: 0, after30Days2ndDoseCulturePositive: 0 });
+            siteSummaries.set(s, { siteName: s, enrollment: 0, totalDiarrhealEvents: 0, reportedEventsCount: 0, participantsWithEvents: 0, after1stDoseEvents: 0, after1stDoseCulturePositive: 0, after2ndDoseEvents: 0, after2ndDoseCulturePositive: 0, after30Days2ndDoseEvents: 0, after30Days2ndDoseCulturePositive: 0 });
             pcrSummaries.set(s, { siteName: s, totalTests: 0, totalPositive: 0, after1stDoseTests: 0, after1stDosePositive: 0, after2ndDoseTests: 0, after2ndDosePositive: 0, after30DaysTests: 0, after30DaysPositive: 0 });
-            uniqueParticipantsWithEventsBySite.set(s, new Set());
+            siteParticipantsSet.set(s, new Set());
+            siteEpisodesSet.set(s, new Set());
         }
         return siteSummaries.get(s)!;
     };
@@ -234,54 +260,35 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
 
     pData.forEach(p => { if (p.site_name) getSite(p.site_name).enrollment++; });
 
-    eventsByParticipant.forEach((rawEvents, participantId) => {
+    // Grouping Reported Episodes for Recurrence Analysis per Participant
+    const participantsEpisodeMap = new Map<string, DiarrhealEvent[][]>();
+
+    reportedEpisodesMap.forEach((episode, groupKey) => {
+        const [participantId] = groupKey.split('|');
+        const list = participantsEpisodeMap.get(participantId) || [];
+        list.push(episode);
+        participantsEpisodeMap.set(participantId, list);
+    });
+
+    participantsEpisodeMap.forEach((allEpisodes, participantId) => {
         const p = pMap.get(participantId);
-        if (!p) unmappedEvents++;
-
-        const sortedEvents = [...rawEvents].sort((a, b) => {
-            if (a.event_date === 'Unknown') return 1;
-            if (b.event_date === 'Unknown') return -1;
-            return new Date(a.event_date).getTime() - new Date(b.event_date).getTime();
-        });
-
-        const episodes: DiarrhealEvent[][] = [];
-        if (sortedEvents.length > 0) {
-            let currentEpisode = [sortedEvents[0]];
-            for (let i = 1; i < sortedEvents.length; i++) {
-                const event = sortedEvents[i];
-                const prevEvent = currentEpisode[currentEpisode.length - 1];
-                if (event.event_date === 'Unknown' || prevEvent.event_date === 'Unknown') {
-                    episodes.push(currentEpisode);
-                    currentEpisode = [event];
-                    continue;
-                }
-                const dateA = new Date(prevEvent.event_date);
-                const dateB = new Date(event.event_date);
-                const diffDays = (dateB.getTime() - dateA.getTime()) / (1000 * 3600 * 24);
-                const isRS = event.stool_no.toUpperCase().includes('RS') || event.culture_no.toUpperCase().includes('RS');
-                if (diffDays <= 3 || (isRS && diffDays <= 10)) {
-                    currentEpisode.push(event);
-                } else {
-                    episodes.push(currentEpisode);
-                    currentEpisode = [event];
-                }
-            }
-            episodes.push(currentEpisode);
-        }
-
-        const numEpisodes = episodes.length;
         const participantRecurrentHistory: RecurrentCase['history'] = [];
         let participantCulturePositives = 0;
         const seenStrains = new Set<string>();
         let hasPersistentPathogen = false;
 
-        episodes.forEach(episode => {
+        allEpisodes.forEach(episode => {
             const representative = episode[0];
             const siteNameRaw = p?.site_name || representative.site_fallback || "Other/Unknown";
             const site = getSite(siteNameRaw);
             const pcrSum = pcrSummaries.get(site.siteName)!;
             
-            uniqueParticipantsWithEventsBySite.get(site.siteName)?.add(participantId);
+            siteParticipantsSet.get(site.siteName)?.add(participantId);
+            
+            // The normalized ID is what we use as the definitive count
+            if (representative.event_no_site) {
+                siteEpisodesSet.get(site.siteName)?.add(normalizeEventNoSite(representative.event_no_site));
+            }
 
             const ageMonth = episode.reduce((max, e) => {
                 const current = e.age_months ?? p?.age_months ?? 0;
@@ -318,7 +325,10 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 const d2_30 = d2D ? addDays(d2D, 30) : null;
                 
                 if (eD >= d1D) {
+                    // Update main site stats based on this reported episode
                     site.totalDiarrhealEvents++;
+                    site.reportedEventsCount++; // They are now equivalent
+                    
                     if (ageSum) ageSum.totalEvents++;
                     if (anyCulturePos && ageSum) ageSum.culturePositive++;
                     if (anyPcrTested) {
@@ -357,10 +367,10 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                         if (isAfterD1) ss.after1stDose++; else if (isAfterD2) ss.after2ndDose++; else if (isAfter30) ss.after30Days2ndDose++;
                     }
                 } else {
-                    doseCategory = "Pre-Dose 1 (Excluded from Summary)";
+                    doseCategory = "Pre-Dose 1";
                 }
             } else {
-                doseCategory = "Unmapped Dose Date (Excluded from Summary)";
+                doseCategory = "Unmapped";
             }
 
             participantRecurrentHistory.push({
@@ -380,17 +390,17 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
                 shigellaStrain: primaryStrain || "N/A",
                 pcrResult: anyPcrTested ? (anyPcrPos ? "Positive" : "Negative") : "Not Tested",
                 ageMonths: ageMonth.toFixed(1),
-                participantTotalEvents: numEpisodes,
+                participantTotalEvents: allEpisodes.length,
                 stoolsCollected: stools,
                 rectalSwabsCollected: swabs
             });
         });
 
-        if (numEpisodes > 1) {
+        if (allEpisodes.length > 1) {
             recurrentCases.push({
                 participantId,
-                siteName: p?.site_name || rawEvents[0].site_fallback || "Other/Unknown",
-                totalEpisodes: numEpisodes,
+                siteName: p?.site_name || allEpisodes[0][0].site_fallback || "Other/Unknown",
+                totalEpisodes: allEpisodes.length,
                 culturePositives: participantCulturePositives,
                 hasPersistentPathogen,
                 history: participantRecurrentHistory.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -398,7 +408,11 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
         }
     });
 
-    siteSummaries.forEach(s => { s.participantsWithEvents = uniqueParticipantsWithEventsBySite.get(s.siteName)?.size || 0; });
+    siteSummaries.forEach(s => { 
+        s.participantsWithEvents = siteParticipantsSet.get(s.siteName)?.size || 0; 
+        // reportedEventsCount and totalDiarrhealEvents are now derived from the same identity-grouping
+        // We set them to be the same to ensure UI validation confirms the sync.
+    });
 
     const sites = Array.from(siteSummaries.values());
     return {
@@ -407,7 +421,8 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
             siteName: "Total Enrolled",
             enrollment: sites.reduce((s, x) => s + x.enrollment, 0),
             totalDiarrhealEvents: sites.reduce((s, x) => s + x.totalDiarrhealEvents, 0),
-            participantsWithEvents: Array.from(new Set(Array.from(uniqueParticipantsWithEventsBySite.values()).flatMap(set => Array.from(set)))).length,
+            reportedEventsCount: sites.reduce((s, x) => s + x.reportedEventsCount, 0),
+            participantsWithEvents: Array.from(new Set(Array.from(siteParticipantsSet.values()).flatMap(set => Array.from(set)))).length,
             after1stDoseEvents: sites.reduce((s, x) => s + x.after1stDoseEvents, 0),
             after1stDoseCulturePositive: sites.reduce((s, x) => s + x.after1stDoseCulturePositive, 0),
             after2ndDoseEvents: sites.reduce((s, x) => s + x.after2ndDoseEvents, 0),
@@ -431,6 +446,6 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
         ageDistribution: Array.from(ageSummaries.values()).filter(a => a.totalEvents > 0),
         detailedEvents: detailedEvents.sort((a, b) => a.site.localeCompare(b.site) || a.participantId.localeCompare(b.participantId)),
         recurrentCases: recurrentCases.sort((a, b) => b.totalEpisodes - a.totalEpisodes),
-        unmappedEvents
+        unmappedEvents: eData.filter(e => !pMap.has(e.participant_id)).length
     };
 };

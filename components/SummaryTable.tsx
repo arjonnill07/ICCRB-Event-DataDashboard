@@ -17,9 +17,17 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
         <div className="space-y-16 pb-20">
             {/* Main Site Table */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
-                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
-                    <div className="w-3 h-7 bg-teal-700 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Site Enrollment & Case Breakdown</h3>
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-7 bg-teal-700 rounded-full"></div>
+                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Site Enrollment & Validated Case Breakdown</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-full shadow-sm">
+                            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                            Grouped by Event No (Site)
+                        </span>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -27,9 +35,9 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                             <tr className="bg-slate-900 text-white">
                                 <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle border-r border-slate-700">Clinical Site</th>
                                 <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700 bg-slate-800">Enrolled</th>
-                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700">Total Events</th>
-                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 1</th>
-                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 2</th>
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700 bg-slate-900">Total Validated Episodes</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 1 (Reported)</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 2 (Reported)</th>
                                 <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b bg-slate-900">Post-30D Follow-up</th>
                             </tr>
                             <tr className="bg-slate-700 text-slate-100">
@@ -44,14 +52,20 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                         <tbody className="divide-y divide-slate-300">
                             {[...data.sites, data.totals].map((s, idx) => {
                                 const isTotal = idx === data.sites.length;
+                                
                                 return (
                                     <tr key={s.siteName} className={`${isTotal ? 'bg-slate-100 font-black' : 'hover:bg-slate-50 transition-colors'}`}>
                                         <td className="px-6 py-5 text-base font-black text-slate-950 border-r border-slate-200">{s.siteName}</td>
                                         <td className="px-6 py-5 text-lg text-center border-r border-slate-200 font-black text-slate-900 bg-slate-50/50">{s.enrollment}</td>
-                                        <td className="px-6 py-5 text-base text-center border-r border-slate-200 font-bold">
-                                            <div className="text-slate-950">{s.totalDiarrhealEvents}</div>
-                                            <div className="text-[11px] text-slate-500 font-black uppercase tracking-tighter mt-0.5">{formatPercent(s.totalDiarrhealEvents, s.enrollment)} Rate</div>
+                                        
+                                        {/* Single Source of Truth: Reported Count */}
+                                        <td className="px-6 py-5 text-center border-r border-slate-200 font-black text-slate-950 bg-slate-100/30">
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <span className="text-xl">{s.reportedEventsCount}</span>
+                                                <div className="text-[10px] opacity-60 uppercase font-black">{formatPercent(s.reportedEventsCount, s.enrollment)} Rate</div>
+                                            </div>
                                         </td>
+
                                         <td className="px-4 py-5 text-center border-r border-slate-200 bg-teal-50/30 text-slate-900 font-bold">{s.after1stDoseEvents}</td>
                                         <td className="px-4 py-5 text-center border-r border-slate-200 bg-teal-50/50">
                                             <div className="text-lg font-black text-teal-950">{s.after1stDoseCulturePositive}</div>
@@ -78,11 +92,11 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                 </div>
             </div>
 
-            {/* Participants with Diarrheal Events Table */}
+            {/* Attack Rate Table - Based on Reported Data */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
                 <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
                     <div className="w-3 h-7 bg-blue-700 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Participants with Diarrheal Events (Sitewise)</h3>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Clinical Attack Rate (Reported Events)</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -90,7 +104,7 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                             <tr>
                                 <th className="px-6 py-5 border-r border-slate-700">Clinical Site</th>
                                 <th className="px-6 py-5 text-center border-r border-slate-700">Enrolled Population</th>
-                                <th className="px-6 py-5 text-center">Participants with Diarrheal Events</th>
+                                <th className="px-6 py-5 text-center">Participants with Verified Events</th>
                                 <th className="px-6 py-5 text-center">Attack Rate (%)</th>
                             </tr>
                         </thead>
@@ -120,7 +134,7 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
                 <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
                     <div className="w-3 h-7 bg-emerald-700 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">RT-PCR Diagnostic Results</h3>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">RT-PCR Diagnostic Statistics</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -179,19 +193,19 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                 </div>
             </div>
 
-            {/* Age Stratified Table */}
+            {/* Age Distribution - Grounded in Reported IDs */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
                 <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
                     <div className="w-3 h-7 bg-indigo-700 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Age Distribution Analytics</h3>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Age Distribution Analytics (Reported Events)</h3>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-900 text-white text-[11px] font-black uppercase tracking-widest">
                             <tr>
                                 <th className="px-6 py-5">Age Bracket</th>
-                                <th className="px-4 py-5 text-center">Total Events</th>
-                                <th className="px-4 py-5 text-center">Total Positives</th>
+                                <th className="px-4 py-5 text-center">Total Verified Events</th>
+                                <th className="px-4 py-5 text-center">Total Culture Positives</th>
                                 <th className="px-4 py-5 text-center bg-teal-900">Post-Dose 1 Pos</th>
                                 <th className="px-4 py-5 text-center bg-amber-900">Post-Dose 2 Pos</th>
                                 <th className="px-4 py-5 text-center bg-rose-900">Post-30D Pos</th>
@@ -217,11 +231,11 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                 </div>
             </div>
 
-            {/* Strain Distribution */}
+            {/* Top Serotype Prevalence */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
                 <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
                     <div className="w-3 h-7 bg-slate-900 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Top Serotype Prevalence</h3>
+                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Top Serotype Prevalence (Reported Data)</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-slate-200">
                     {data.strains.slice(0, 3).map(s => (

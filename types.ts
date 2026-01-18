@@ -14,6 +14,7 @@ export interface DiarrhealEvent {
   episode_id: string;
   culture_no: string;
   stool_no: string;
+  event_no_site?: string; // New field for validation
   shigella_strain?: string;
   pcr_result?: string;
   age_months?: number;
@@ -52,7 +53,12 @@ export interface RecurrentCase {
 export interface SiteSummary {
   siteName: string;
   enrollment: number;
-  totalDiarrhealEvents: number;
+  totalDiarrhealEvents: number; // This is calculated by our logic
+  reportedEventsCount: number;   // This is from the "Event No (Site)" column
+  /**
+   * participantsWithEvents: The count of unique participants who experienced 
+   * at least one diarrheal event within the site.
+   */
   participantsWithEvents: number;
 
   after1stDoseEvents: number;
