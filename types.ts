@@ -14,7 +14,7 @@ export interface DiarrhealEvent {
   episode_id: string;
   culture_no: string;
   stool_no: string;
-  event_no_site?: string; // New field for validation
+  event_no_site?: string;
   shigella_strain?: string;
   pcr_result?: string;
   age_months?: number;
@@ -53,35 +53,33 @@ export interface RecurrentCase {
 export interface SiteSummary {
   siteName: string;
   enrollment: number;
-  totalDiarrhealEvents: number; // This is calculated by our logic
-  reportedEventsCount: number;   // This is from the "Event No (Site)" column
-  /**
-   * participantsWithEvents: The count of unique participants who experienced 
-   * at least one diarrheal event within the site.
-   */
+  totalDiarrhealEvents: number;
+  reportedEventsCount: number;
   participantsWithEvents: number;
-
   after1stDoseEvents: number;
   after1stDoseCulturePositive: number;
-
   after2ndDoseEvents: number;
   after2ndDoseCulturePositive: number;
-
   after30Days2ndDoseEvents: number;
   after30Days2ndDoseCulturePositive: number;
+}
+
+export interface DiagnosticConcordance {
+    totalEpisodes: number;
+    culturePosPcrPos: number;
+    cultureNegPcrPos: number;
+    culturePosPcrNeg: number;
+    bothNegative: number;
 }
 
 export interface PcrSummary {
   siteName: string;
   totalTests: number;
   totalPositive: number;
-
   after1stDoseTests: number;
   after1stDosePositive: number;
-
   after2ndDoseTests: number;
   after2ndDosePositive: number;
-
   after30DaysTests: number;
   after30DaysPositive: number;
 }
@@ -98,13 +96,10 @@ export interface AgeSummary {
   ageGroup: string;
   totalEvents: number;
   culturePositive: number;
-
   after1stDoseEvents: number;
   after1stDoseCulturePositive: number;
-
   after2ndDoseEvents: number;
   after2ndDoseCulturePositive: number;
-
   after30Days2ndDoseEvents: number;
   after30Days2ndDoseCulturePositive: number;
 }
@@ -119,4 +114,9 @@ export interface SummaryData {
     detailedEvents: DetailedParticipantEvent[];
     recurrentCases: RecurrentCase[];
     unmappedEvents: number;
+    concordance: DiagnosticConcordance;
+    specimenYield: {
+        stool: { count: number; culturePos: number; pcrPos: number };
+        swab: { count: number; culturePos: number; pcrPos: number };
+    };
 }

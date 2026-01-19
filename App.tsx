@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { SummaryTable } from './components/SummaryTable';
 import { RecurrentCasesTable } from './components/RecurrentCasesTable';
+import { DiagnosticInsights } from './components/DiagnosticInsights';
 import { processFiles } from './services/dataProcessor';
 import { exportToPDF, exportToXLSX, exportDetailedToXLSX } from './services/exporter';
 import type { SummaryData } from './types';
@@ -64,7 +65,6 @@ const App: React.FC = () => {
             
             <main className="py-10 flex-grow">
                 <div className="max-w-7xl mx-auto sm:px-6 lg:px-8">
-                    
                     <div className="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 mb-10 transition-all hover:shadow-2xl">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-10">
                             <FileUpload id="p-file" title="Enrollment Data" description="Site Name, Rand#, Visit, Dates" onFileSelect={setParticipantFile} />
@@ -89,6 +89,8 @@ const App: React.FC = () => {
                                 <StatCard title="Culture Positive" value={summaryData.totals.after1stDoseCulturePositive + summaryData.totals.after2ndDoseCulturePositive + summaryData.totals.after30Days2ndDoseCulturePositive} color="text-rose-600" subValue="Confirmed Shigella Cases" />
                                 <StatCard title="Recurrent Cases" value={summaryData.recurrentCases.length} color="text-blue-600" subValue="Participants with >1 Event" />
                             </div>
+
+                            <DiagnosticInsights data={summaryData} />
 
                              <div className="flex flex-col sm:flex-row justify-between items-end mb-8 gap-6">
                                 <div className="flex-1">
