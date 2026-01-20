@@ -172,7 +172,19 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
         age: findIndex(['Age']),
         eventNoSite: findIndex(['Event No (Site)', 'Event No', 'Site Event No', 'Site No'])
     };
-    return rows.slice(headerRowIndex + 1).filter(row => {
+    const dataRows = rows.slice(headerRowIndex + 1);
+    let lastValidIndex = -1;
+    for (let i = dataRows.length - 1; i >= 0; i--) {
+        if (safeString(dataRows[i][colMap.eventNoSite]).trim() !== '') {
+            lastValidIndex = i;
+            break;
+        }
+    }
+    if (lastValidIndex === -1) {
+        throw new Error("No valid Event No (Site) found in Events file. Calculations require Event No (Site) to ensure lab consistency.");
+    }
+    const filteredDataRows = dataRows.slice(0, lastValidIndex + 1);
+    return filteredDataRows.filter(row => {
         const c = safeString(row[colMap.cNo]);
         const dateVal = parseDate(row[colMap.date]);
         return c && /^\d|RS/i.test(c) && !c.toLowerCase().includes('total') && dateVal !== null;
