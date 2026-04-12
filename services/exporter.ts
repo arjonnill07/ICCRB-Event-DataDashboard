@@ -62,13 +62,23 @@ const getStrainTableData = (data: SummaryData): (string | number)[][] => {
         after30: acc.after30 + curr.after30Days2ndDose
     }), { total: 0, after1: 0, after2: 0, after30: 0 });
 
-    return data.strains.map(item => [
+    const rows = data.strains.map(item => [
         item.strainName,
         `${item.total} (${formatPercent(item.total, totals.total)})`,
         `${item.after1stDose} (${formatPercent(item.after1stDose, totals.after1)})`,
         `${item.after2ndDose} (${formatPercent(item.after2ndDose, totals.after2)})`,
         `${item.after30Days2ndDose} (${formatPercent(item.after30Days2ndDose, totals.after30)})`
     ]);
+
+    rows.push([
+        'Total',
+        `${totals.total} (${formatPercent(totals.total, totals.total)})`,
+        `${totals.after1} (${formatPercent(totals.after1, totals.after1)})`,
+        `${totals.after2} (${formatPercent(totals.after2, totals.after2)})`,
+        `${totals.after30} (${formatPercent(totals.after30, totals.after30)})`
+    ]);
+
+    return rows;
 };
 
 export const exportDetailedToXLSX = (data: SummaryData, siteFilter: string = "All Sites") => {
@@ -177,26 +187,26 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date) => {
         doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.text(titleLine1, 40, 40);
         doc.setFontSize(12); doc.setFont("helvetica", "normal"); doc.text(titleLine2, 40, 58);
         doc.setFontSize(9); doc.setTextColor(100); doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 40, 75);
-        const commonStyles = { cellPadding: 3, fontSize: 8 };
-        const commonHeadStyles = { fillColor: [243, 244, 246], textColor: [55, 65, 81], fontStyle: 'bold', halign: 'center' };
+        const tableStyles = { cellPadding: 4, fontSize: 8, overflow: 'linebreak', cellWidth: 'wrap' };
+        const commonHeadStyles = { fillColor: [243, 244, 246], textColor: [33, 37, 41], fontStyle: 'bold', halign: 'center', valign: 'middle' };
         const head = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Enrollment', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Number of Diarrhoeal Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
         const body = getTableData(data);
-        (doc as any).autoTable({ head, body, startY: 90, theme: 'grid', headStyles: commonHeadStyles, styles: commonStyles, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === body.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
+        (doc as any).autoTable({ head, body, startY: 90, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === body.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
         let finalY = (doc as any).lastAutoTable.finalY || 150;
         doc.setFontSize(14); doc.setTextColor(0); doc.text("Age wise diarrheal events", 40, finalY + 30);
         const ageHead = [[{ content: 'Age Distribution', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Culture Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
         const ageBody = getAgeTableData(data);
-        (doc as any).autoTable({ head: ageHead, body: ageBody, startY: finalY + 45, theme: 'grid', headStyles: commonHeadStyles, styles: commonStyles });
+        (doc as any).autoTable({ head: ageHead, body: ageBody, startY: finalY + 45, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] } });
         finalY = (doc as any).lastAutoTable.finalY || 250;
         doc.setFontSize(14); doc.setTextColor(0); doc.text("RT-PCR Result", 40, finalY + 30);
         const pcrHead = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Tests', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Tested', 'Positive', 'Tested', 'Positive', 'Tested', 'Positive']];
         const pcrBody = getPcrTableData(data);
-        (doc as any).autoTable({ head: pcrHead, body: pcrBody, startY: finalY + 45, theme: 'grid', headStyles: commonHeadStyles, styles: commonStyles, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === pcrBody.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
+        (doc as any).autoTable({ head: pcrHead, body: pcrBody, startY: finalY + 45, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === pcrBody.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
         finalY = (doc as any).lastAutoTable.finalY || 350;
         doc.setFontSize(14); doc.setTextColor(0); doc.text("Serotype/Serogroup Distribution of Culture Positive Cases", 40, finalY + 40);
         const strainHead = [["Serotype/Serogroup", "Total Positive Cases", "After 1st dose", "After 2nd dose", "After 30 days of the 2nd dose"]];
         const strainBody = getStrainTableData(data);
-        (doc as any).autoTable({ head: strainHead, body: strainBody, startY: finalY + 55, theme: 'grid', headStyles: commonHeadStyles, styles: { ...commonStyles, halign: 'center' } });
+        (doc as any).autoTable({ head: strainHead, body: strainBody, startY: finalY + 55, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: { ...tableStyles, halign: 'center' }, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === strainBody.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
         doc.save('Summary_Report_Conjugate_vaccine_PR-24079_icddrb.pdf');
     } catch (error) {
         console.error("Failed to generate PDF:", error);
