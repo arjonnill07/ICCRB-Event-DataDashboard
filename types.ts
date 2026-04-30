@@ -112,6 +112,7 @@ export interface SummaryData {
     pcrTotals: PcrSummary;
     ageDistribution: AgeSummary[];
     detailedEvents: DetailedParticipantEvent[];
+    participants: Participant[];
     recurrentCases: RecurrentCase[];
     unmappedEvents: number;
     concordance: DiagnosticConcordance;

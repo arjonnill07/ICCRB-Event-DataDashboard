@@ -1,9 +1,10 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FileUpload } from './components/FileUpload';
 import { SummaryTable } from './components/SummaryTable';
 import { RecurrentCasesTable } from './components/RecurrentCasesTable';
 import { DiagnosticInsights } from './components/DiagnosticInsights';
+import { ParticipantLookup } from './components/ParticipantLookup';
 import { processFiles } from './services/dataProcessor';
 import { exportToPDF, exportToXLSX, exportDetailedToXLSX } from './services/exporter';
 import type { SummaryData } from './types';
@@ -24,6 +25,15 @@ const App: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [reportGeneratedAt, setReportGeneratedAt] = useState<Date | null>(null);
     const [selectedExportSite, setSelectedExportSite] = useState<string>("All Sites");
+    const [pdfOptions, setPdfOptions] = useState({ summary: true, age: true, pcr: true, strain: true });
+    const [selectedStrains, setSelectedStrains] = useState<string[]>([]);
+    const [showRecurrentCases, setShowRecurrentCases] = useState(false);
+
+    useEffect(() => {
+        if (summaryData) {
+            setSelectedStrains(summaryData.strains.map(s => s.strainName));
+        }
+    }, [summaryData]);
 
     const handleGenerateReport = useCallback(async () => {
         if (!participantFile || !diarrheaFile) {
@@ -43,9 +53,17 @@ const App: React.FC = () => {
         }
     }, [participantFile, diarrheaFile]);
     
-    const handleExportPDF = () => summaryData && reportGeneratedAt && exportToPDF(summaryData, reportGeneratedAt);
+    const handleExportPDF = () => summaryData && reportGeneratedAt && exportToPDF(summaryData, reportGeneratedAt, {
+        includeSummary: pdfOptions.summary,
+        includeAge: pdfOptions.age,
+        includePcr: pdfOptions.pcr,
+        includeStrain: pdfOptions.strain,
+        selectedStrains
+    });
     const handleExportXLSX = () => summaryData && reportGeneratedAt && exportToXLSX(summaryData, reportGeneratedAt);
     const handleExportDetailed = () => summaryData && exportDetailedToXLSX(summaryData, selectedExportSite);
+
+    const availableStrains = summaryData?.strains.map(s => s.strainName) ?? [];
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 antialiased flex flex-col font-sans">
@@ -92,47 +110,159 @@ const App: React.FC = () => {
 
                             <DiagnosticInsights data={summaryData} />
 
-                             <div className="flex flex-col sm:flex-row justify-between items-end mb-8 gap-6">
-                                <div className="flex-1">
-                                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Clinical Summary Report</h2>
-                                    <p className="text-sm text-slate-500 mt-1 font-medium italic">Snapshot: {reportGeneratedAt?.toLocaleString()}</p>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-3">
-                                    <div className="flex flex-col gap-1">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Export Scope</label>
-                                        <select 
-                                            value={selectedExportSite} 
-                                            onChange={(e) => setSelectedExportSite(e.target.value)}
-                                            className="bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500 transition-all cursor-pointer shadow-sm"
-                                        >
-                                            <option value="All Sites">All Sites Combined</option>
-                                            {summaryData.sites.map(s => (
-                                                <option key={s.siteName} value={s.siteName}>{s.siteName}</option>
-                                            ))}
-                                        </select>
+                            <ParticipantLookup data={summaryData} />
+
+                            <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr] mb-8">
+                                <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                        <div>
+                                            <p className="text-xs uppercase font-black tracking-widest text-slate-400">Site-specific XLSX export</p>
+                                            <p className="mt-2 text-sm font-bold text-slate-900">Download event log for one site</p>
+                                        </div>
+                                        <div className="text-sm text-slate-500">Choose a site and export its detailed event log.</div>
                                     </div>
-                                    <div className="flex flex-wrap gap-2 pt-5">
-                                        <button onClick={handleExportDetailed} className="flex items-center px-5 py-2.5 bg-teal-600 rounded-lg text-sm font-bold text-white hover:bg-teal-700 transition-all shadow-sm">
-                                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2a4 4 0 00-4-4H5m14 6l-3-3m3 3l3-3m-3 3V10" /></svg> 
-                                            Detailed XLSX Report
-                                        </button>
-                                        <button onClick={handleExportXLSX} className="flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:text-emerald-600 transition-all hover:border-emerald-200 shadow-sm">
-                                            <svg className="w-4 h-4 mr-2 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> 
-                                            Excel Summary
-                                        </button>
-                                        <button onClick={handleExportPDF} className="flex items-center px-5 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-bold text-slate-700 hover:text-rose-600 transition-all hover:border-rose-200 shadow-sm">
-                                            <svg className="w-4 h-4 mr-2 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg> 
-                                            PDF Summary
+
+                                    <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+                                        <div>
+                                            <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">Export Site</label>
+                                            <select
+                                                value={selectedExportSite}
+                                                onChange={(e) => setSelectedExportSite(e.target.value)}
+                                                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                            >
+                                                <option value="All Sites">All Sites Combined</option>
+                                                {summaryData.sites.map(s => (
+                                                    <option key={s.siteName} value={s.siteName}>{s.siteName}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 justify-end">
+                                            <button
+                                                onClick={handleExportDetailed}
+                                                className="px-5 py-2.5 bg-teal-600 rounded-xl text-sm font-bold text-white hover:bg-teal-700 transition-all shadow-sm"
+                                            >
+                                                Download XLSX
+                                            </button>
+                                            <button
+                                                onClick={() => summaryData && exportDetailedToXLSX(summaryData, 'All Sites')}
+                                                className="px-5 py-2.5 bg-slate-50 rounded-xl text-sm font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 transition-all"
+                                            >
+                                                All Sites XLSX
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-rose-50 rounded-2xl p-5 border border-rose-200 shadow-sm">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                        <div>
+                                            <p className="text-xs uppercase font-black tracking-widest text-rose-600">PDF export</p>
+                                            <p className="mt-2 text-sm font-bold text-slate-900">Generate a custom PDF report</p>
+                                        </div>
+                                        <div className="text-sm text-slate-500">Toggle sections and strain filters before exporting.</div>
+                                    </div>
+
+                                    <div className="mt-4 grid grid-cols-2 gap-3">
+                                        {[
+                                            { key: 'summary', label: 'Site Summary' },
+                                            { key: 'age', label: 'Age Distribution' },
+                                            { key: 'pcr', label: 'RT-PCR Result' },
+                                            { key: 'strain', label: 'Serotype/Serogroup' }
+                                        ].map(section => (
+                                            <label key={section.key} className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={pdfOptions[section.key as keyof typeof pdfOptions]}
+                                                    onChange={() => setPdfOptions(prev => ({
+                                                        ...prev,
+                                                        [section.key]: !prev[section.key as keyof typeof pdfOptions]
+                                                    }))}
+                                                    className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                                />
+                                                {section.label}
+                                            </label>
+                                        ))}
+                                    </div>
+
+                                    <div className="mt-6">
+                                        <label className="block text-[10px] uppercase tracking-widest text-slate-400 mb-2">Serotype / Serogroup Filter</label>
+                                        <div className="max-h-40 overflow-y-auto rounded-xl border border-slate-300 bg-slate-50 p-3">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {availableStrains.map(strainName => (
+                                                    <label key={strainName} className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 hover:bg-slate-100">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedStrains.includes(strainName)}
+                                                            onChange={() => {
+                                                                setSelectedStrains(prev => prev.includes(strainName)
+                                                                    ? prev.filter(item => item !== strainName)
+                                                                    : [...prev, strainName]
+                                                                );
+                                                            }}
+                                                            className="h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                                                        />
+                                                        <span className="truncate">{strainName}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="mt-3 flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedStrains(availableStrains)}
+                                                className="text-[11px] font-bold text-teal-700 hover:text-teal-900"
+                                            >
+                                                Select all
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedStrains([])}
+                                                className="text-[11px] font-bold text-slate-500 hover:text-slate-900"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-6 text-right">
+                                        <button
+                                            onClick={handleExportPDF}
+                                            className="px-6 py-3 bg-rose-600 rounded-xl text-sm font-bold text-white hover:bg-rose-700 transition-all shadow-sm"
+                                        >
+                                            Download PDF
                                         </button>
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <SummaryTable data={summaryData} />
                             
                             {summaryData.recurrentCases.length > 0 && (
-                                <div className="mt-16">
-                                    <RecurrentCasesTable data={summaryData.recurrentCases} />
+                                <div className="mt-16 bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                                    <button
+                                        onClick={() => setShowRecurrentCases(!showRecurrentCases)}
+                                        className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+                                    >
+                                        <div className="text-left">
+                                            <h3 className="text-lg font-black text-slate-900">Recurrent Episode Analytics</h3>
+                                            <p className="text-sm text-slate-500 mt-1">Participants with multiple diarrheal episodes</p>
+                                        </div>
+                                        <svg
+                                            className={`w-6 h-6 text-slate-400 transition-transform ${
+                                                showRecurrentCases ? 'rotate-180' : ''
+                                            }`}
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                    </button>
+                                    {showRecurrentCases && (
+                                        <div className="border-t border-slate-200 p-6">
+                                            <RecurrentCasesTable data={summaryData.recurrentCases} />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
