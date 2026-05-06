@@ -329,11 +329,11 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
     console.groupCollapsed('PCR Merge Diagnostics');
     console.info('Events sheet:', sheetName);
     console.info('Event rows parsed:', filteredDataRows.length, 'Events mapped:', events.length, 'Unique event keys:', eventMap.size);
-    console.info('PCR sheet name candidates:', workbook.SheetNames.filter(name => normalizeSheetName(name).includes('sheet6') || normalizeSheetName(name).includes('rtpcr') || normalizeSheetName(name).includes('pcr')));
+    console.info('PCR sheet name candidates:', workbook.SheetNames.filter((name: string) => normalizeSheetName(name).includes('sheet6') || normalizeSheetName(name).includes('rtpcr') || normalizeSheetName(name).includes('pcr')));
     console.groupEnd();
 
     const pcrSheetPatterns = [['Culture No', 'C.No'], ['Collection Date', 'Date', 'Sample Date'], ['RT-PCR result', 'PCR', 'RT-PCR Result', 'PCR Result', 'RT PCR result', 'RT PCR Result', 'Result']];
-    const sheet6Name = workbook.SheetNames.find(name => normalizeSheetName(name) === 'sheet6' || normalizeSheetName(name).includes('sheet6') || normalizeSheetName(name).includes('rtpcr') || normalizeSheetName(name).includes('pcr'))
+    const sheet6Name = workbook.SheetNames.find((name: string) => normalizeSheetName(name) === 'sheet6' || normalizeSheetName(name).includes('sheet6') || normalizeSheetName(name).includes('rtpcr') || normalizeSheetName(name).includes('pcr'))
         || findSheetNameByHeaderVariants(workbook, pcrSheetPatterns);
     if (sheet6Name) {
         console.info('Detected PCR sheet:', sheet6Name);
@@ -444,6 +444,9 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
     const pcrSummaries = new Map<string, PcrSummary>();
     const ageSummaries = new Map<string, AgeSummary>();
     const strainSummaries = new Map<string, StrainSummary>();
+
+    const siteStrainSummariesBySite = new Map<string, Map<string, StrainSummary>>();
+    const ageStrainSummariesByAge = new Map<string, Map<string, StrainSummary>>();
     const detailedEvents: DetailedParticipantEvent[] = [];
     const recurrentCases: RecurrentCase[] = [];
     const siteParticipantsSet = new Map<string, Set<string>>();
@@ -463,8 +466,14 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
         return siteSummaries.get(s)!;
     };
 
-    INITIAL_SITES.forEach(s => getSite(s));
-    AGE_GROUPS.forEach(g => ageSummaries.set(g, { ageGroup: g, totalEvents: 0, culturePositive: 0, after1stDoseEvents: 0, after1stDoseCulturePositive: 0, after2ndDoseEvents: 0, after2ndDoseCulturePositive: 0, after30Days2ndDoseEvents: 0, after30Days2ndDoseCulturePositive: 0 }));
+    INITIAL_SITES.forEach(s => {
+        getSite(s);
+        siteStrainSummariesBySite.set(s, new Map());
+    });
+    AGE_GROUPS.forEach(g => {
+        ageSummaries.set(g, { ageGroup: g, totalEvents: 0, culturePositive: 0, after1stDoseEvents: 0, after1stDoseCulturePositive: 0, after2ndDoseEvents: 0, after2ndDoseCulturePositive: 0, after30Days2ndDoseEvents: 0, after30Days2ndDoseCulturePositive: 0 });
+        ageStrainSummariesByAge.set(g, new Map());
+    });
     pData.forEach(p => { if (p.site_name) getSite(p.site_name).enrollment++; });
 
     const participantsEpisodeMap = new Map<string, DiarrhealEvent[][]>();
@@ -514,11 +523,15 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
             if (primaryStrain) { if (seenStrains.has(primaryStrain)) hasPersistentPathogen = true; seenStrains.add(primaryStrain); }
 
             let doseCategory = "Baseline/Pre-Dose";
+            const ageGroup = (() => {
+                const eD = parseDate(representative.event_date);
+                if (!eD) return getAgeGroup(representative.age_months ?? p?.age_months ?? 0);
+                return getAgeGroup(representative.age_months ?? p?.age_months ?? 0);
+            })();
             const eD = parseDate(representative.event_date);
             const d1D = p?.dose1_date ? parseDate(p.dose1_date) : null;
             if (eD && d1D && eD >= d1D) {
                 site.totalDiarrhealEvents++; site.reportedEventsCount++;
-                const ageGroup = getAgeGroup(representative.age_months ?? p?.age_months ?? 0);
                 const ageSum = ageGroup ? ageSummaries.get(ageGroup) : null;
                 if (ageSum) { ageSum.totalEvents++; if (anyCulturePos) ageSum.culturePositive++; }
                 if (anyPcrTested) { pcrSum.totalTests++; if (anyPcrPos) pcrSum.totalPositive++; }
@@ -535,9 +548,29 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
 
                 if (anyCulturePos) {
                     const sN = primaryStrain || "Unspecified";
+
+                    // Existing global strain totals (unchanged)
                     if (!strainSummaries.has(sN)) strainSummaries.set(sN, { strainName: sN, total: 0, after1stDose: 0, after2ndDose: 0, after30Days2ndDose: 0 });
                     const ss = strainSummaries.get(sN)!; ss.total++;
                     if (isAfterD1) ss.after1stDose++; else if (isAfterD2) ss.after2ndDose++; else if (isAfter30) ss.after30Days2ndDose++;
+
+                    // New per-site/per-strain culture-positive totals
+                    if (!siteStrainSummariesBySite.has(site.siteName)) siteStrainSummariesBySite.set(site.siteName, new Map());
+                    const perSite = siteStrainSummariesBySite.get(site.siteName)!;
+                    if (!perSite.has(sN)) perSite.set(sN, { strainName: sN, total: 0, after1stDose: 0, after2ndDose: 0, after30Days2ndDose: 0 });
+                    const siteSs = perSite.get(sN)!;
+                    siteSs.total++;
+                    if (isAfterD1) siteSs.after1stDose++; else if (isAfterD2) siteSs.after2ndDose++; else if (isAfter30) siteSs.after30Days2ndDose++;
+
+                    // New per-age/per-strain culture-positive totals (age group may be null)
+                    if (ageGroup) {
+                        if (!ageStrainSummariesByAge.has(ageGroup)) ageStrainSummariesByAge.set(ageGroup, new Map());
+                        const perAge = ageStrainSummariesByAge.get(ageGroup)!;
+                        if (!perAge.has(sN)) perAge.set(sN, { strainName: sN, total: 0, after1stDose: 0, after2ndDose: 0, after30Days2ndDose: 0 });
+                        const ageSs = perAge.get(sN)!;
+                        ageSs.total++;
+                        if (isAfterD1) ageSs.after1stDose++; else if (isAfterD2) ageSs.after2ndDose++; else if (isAfter30) ageSs.after30Days2ndDose++;
+                    }
                 }
             }
             participantRecurrentHistory.push({ date: representative.event_date, result: anyCulturePos ? "Positive" : "Negative", stage: doseCategory, strain: primaryStrain });
@@ -549,11 +582,32 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
 
     siteSummaries.forEach(s => { s.participantsWithEvents = siteParticipantsSet.get(s.siteName)?.size || 0; });
     const sites = Array.from(siteSummaries.values());
+    const siteStrainDistribution = Array.from(siteStrainSummariesBySite.entries()).map(([siteName, strainsMap]) => ({
+        siteName,
+        strains: Array.from(strainsMap.values()).sort((a, b) => b.total - a.total)
+    }));
+
+    const ageStrainDistribution = Array.from(ageStrainSummariesByAge.entries()).map(([ageGroup, strainsMap]) => ({
+        ageGroup,
+        strains: Array.from(strainsMap.values()).sort((a, b) => b.total - a.total)
+    }));
+
     return {
-        sites, totals: { siteName: "Total", enrollment: sites.reduce((s, x) => s + x.enrollment, 0), totalDiarrhealEvents: sites.reduce((s, x) => s + x.totalDiarrhealEvents, 0), reportedEventsCount: sites.reduce((s, x) => s + x.reportedEventsCount, 0), participantsWithEvents: Array.from(new Set(Array.from(siteParticipantsSet.values()).flatMap(set => Array.from(set)))).length, after1stDoseEvents: sites.reduce((s, x) => s + x.after1stDoseEvents, 0), after1stDoseCulturePositive: sites.reduce((s, x) => s + x.after1stDoseCulturePositive, 0), after2ndDoseEvents: sites.reduce((s, x) => s + x.after2ndDoseEvents, 0), after2ndDoseCulturePositive: sites.reduce((s, x) => s + x.after2ndDoseCulturePositive, 0), after30Days2ndDoseEvents: sites.reduce((s, x) => s + x.after30Days2ndDoseEvents, 0), after30Days2ndDoseCulturePositive: sites.reduce((s, x) => s + x.after30Days2ndDoseCulturePositive, 0) },
-        strains: Array.from(strainSummaries.values()).sort((a, b) => b.total - a.total), pcrSites: Array.from(pcrSummaries.values()),
+        sites,
+        totals: { siteName: "Total", enrollment: sites.reduce((s, x) => s + x.enrollment, 0), totalDiarrhealEvents: sites.reduce((s, x) => s + x.totalDiarrhealEvents, 0), reportedEventsCount: sites.reduce((s, x) => s + x.reportedEventsCount, 0), participantsWithEvents: Array.from(new Set(Array.from(siteParticipantsSet.values()).flatMap(set => Array.from(set)))).length, after1stDoseEvents: sites.reduce((s, x) => s + x.after1stDoseEvents, 0), after1stDoseCulturePositive: sites.reduce((s, x) => s + x.after1stDoseCulturePositive, 0), after2ndDoseEvents: sites.reduce((s, x) => s + x.after2ndDoseEvents, 0), after2ndDoseCulturePositive: sites.reduce((s, x) => s + x.after2ndDoseCulturePositive, 0), after30Days2ndDoseEvents: sites.reduce((s, x) => s + x.after30Days2ndDoseEvents, 0), after30Days2ndDoseCulturePositive: sites.reduce((s, x) => s + x.after30Days2ndDoseCulturePositive, 0) },
+        strains: Array.from(strainSummaries.values()).sort((a, b) => b.total - a.total),
+
+        siteStrainDistribution,
+        ageStrainDistribution,
+
+        pcrSites: Array.from(pcrSummaries.values()),
         pcrTotals: { siteName: "Total", totalTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.totalTests, 0), totalPositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.totalPositive, 0), after1stDoseTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after1stDoseTests, 0), after1stDosePositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after1stDosePositive, 0), after2ndDoseTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after2ndDoseTests, 0), after2ndDosePositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after2ndDosePositive, 0), after30DaysTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after30DaysTests, 0), after30DaysPositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after30DaysPositive, 0) },
-        ageDistribution: Array.from(ageSummaries.values()).filter(a => a.totalEvents > 0), detailedEvents: detailedEvents.sort((a, b) => a.site.localeCompare(b.site) || a.participantId.localeCompare(b.participantId)), participants: pData, recurrentCases: recurrentCases.sort((a, b) => b.totalEpisodes - a.totalEpisodes), unmappedEvents: eData.filter(e => !pMap.has(e.participant_id)).length,
-        concordance, specimenYield
+        ageDistribution: Array.from(ageSummaries.values()).filter(a => a.totalEvents > 0),
+        detailedEvents: detailedEvents.sort((a, b) => a.site.localeCompare(b.site) || a.participantId.localeCompare(b.participantId)),
+        participants: pData,
+        recurrentCases: recurrentCases.sort((a, b) => b.totalEpisodes - a.totalEpisodes),
+        unmappedEvents: eData.filter(e => !pMap.has(e.participant_id)).length,
+        concordance,
+        specimenYield
     };
 };

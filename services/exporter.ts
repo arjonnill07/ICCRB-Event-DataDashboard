@@ -1,5 +1,5 @@
 
-import type { SummaryData, DetailedParticipantEvent } from '../types';
+import type { SummaryData, DetailedParticipantEvent, StrainSummary } from '../types';
 import { formatPercent } from '../utils/formatter';
 
 declare const XLSX: any;
@@ -25,6 +25,54 @@ const getTableData = (data: SummaryData): (string | number)[][] => {
     ]);
 };
 
+type FilteredCultureTotals = {
+    siteAdjusted: Map<string, { after1: number; after2: number; after30: number }>;
+    ageAdjusted: Map<string, { culturePositive: number; after1: number; after2: number; after30: number }>;
+    strainAdjusted: StrainSummary[]; // row list (without removed strains, includes recalculated Total row in UI builders)
+};
+
+const computeFilteredCultureTotals = (data: SummaryData, excludedStrains: string[] | undefined): FilteredCultureTotals => {
+    const allStrains = data.strains.map(s => s.strainName);
+    const excluded = new Set(excludedStrains && excludedStrains.length ? excludedStrains : []);
+    const included = allStrains.filter(s => !excluded.has(s));
+
+    const siteAdjusted = new Map<string, { after1: number; after2: number; after30: number }>();
+    for (const site of data.siteStrainDistribution) {
+        let after1 = 0;
+        let after2 = 0;
+        let after30 = 0;
+
+        for (const st of site.strains) {
+            if (!included.includes(st.strainName)) continue;
+            after1 += st.after1stDose;
+            after2 += st.after2ndDose;
+            after30 += st.after30Days2ndDose;
+        }
+        siteAdjusted.set(site.siteName, { after1, after2, after30 });
+    }
+
+    const ageAdjusted = new Map<string, { culturePositive: number; after1: number; after2: number; after30: number }>();
+    for (const age of data.ageStrainDistribution) {
+        let after1 = 0;
+        let after2 = 0;
+        let after30 = 0;
+
+        for (const st of age.strains) {
+            if (!included.includes(st.strainName)) continue;
+            after1 += st.after1stDose;
+            after2 += st.after2ndDose;
+            after30 += st.after30Days2ndDose;
+        }
+
+        const culturePositive = after1 + after2 + after30;
+        ageAdjusted.set(age.ageGroup, { culturePositive, after1, after2, after30 });
+    }
+
+    const strainAdjusted = data.strains.filter(s => included.includes(s.strainName));
+
+    return { siteAdjusted, ageAdjusted, strainAdjusted };
+};
+
 const getAgeTableData = (data: SummaryData): (string | number)[][] => {
     return data.ageDistribution.map(item => [
         item.ageGroup,
@@ -37,6 +85,56 @@ const getAgeTableData = (data: SummaryData): (string | number)[][] => {
         item.after30Days2ndDoseEvents,
         `${item.after30Days2ndDoseCulturePositive} (${formatPercent(item.after30Days2ndDoseCulturePositive, item.after30Days2ndDoseEvents)})`,
     ]);
+};
+
+const getFilteredTableData = (data: SummaryData, selectedStrains: string[] | undefined): (string | number)[][] => {
+    const filtered = computeFilteredCultureTotals(data, selectedStrains);
+
+    const totalAfter1 = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.after1, 0);
+    const totalAfter2 = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.after2, 0);
+    const totalAfter30 = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.after30, 0);
+
+    const allRows = [...data.sites, data.totals];
+    return allRows.map(item => {
+        const adjusted =
+            item.siteName === data.totals.siteName
+                ? { after1: totalAfter1, after2: totalAfter2, after30: totalAfter30 }
+                : (filtered.siteAdjusted.get(item.siteName) ?? { after1: 0, after2: 0, after30: 0 });
+
+        // IMPORTANT: diarrheal episode counts remain exactly unchanged.
+        // Only Culture Positive counts change.
+        return [
+            item.siteName,
+            item.enrollment,
+            `${item.totalDiarrhealEvents} (${formatPercent(item.totalDiarrhealEvents, item.enrollment)})`,
+            item.after1stDoseEvents,
+            `${adjusted.after1} (${formatPercent(adjusted.after1, item.after1stDoseEvents)})`,
+            item.after2ndDoseEvents,
+            `${adjusted.after2} (${formatPercent(adjusted.after2, item.after2ndDoseEvents)})`,
+            item.after30Days2ndDoseEvents,
+            `${adjusted.after30} (${formatPercent(adjusted.after30, item.after30Days2ndDoseEvents)})`,
+        ];
+    });
+};
+
+const getFilteredAgeTableData = (data: SummaryData, selectedStrains: string[] | undefined): (string | number)[][] => {
+    const filtered = computeFilteredCultureTotals(data, selectedStrains);
+
+    return data.ageDistribution.map(item => {
+        const adjusted = filtered.ageAdjusted.get(item.ageGroup) ?? { culturePositive: 0, after1: 0, after2: 0, after30: 0 };
+
+        return [
+            item.ageGroup,
+            item.totalEvents,
+            `${adjusted.culturePositive} (${formatPercent(adjusted.culturePositive, item.totalEvents)})`,
+            item.after1stDoseEvents,
+            `${adjusted.after1} (${formatPercent(adjusted.after1, item.after1stDoseEvents)})`,
+            item.after2ndDoseEvents,
+            `${adjusted.after2} (${formatPercent(adjusted.after2, item.after2ndDoseEvents)})`,
+            item.after30Days2ndDoseEvents,
+            `${adjusted.after30} (${formatPercent(adjusted.after30, item.after30Days2ndDoseEvents)})`,
+        ];
+    });
 };
 
 const getPcrTableData = (data: SummaryData): (string | number)[][] => {
@@ -204,14 +302,31 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
         if (typeof (doc as any).autoTable !== 'function') throw new Error("jsPDF-AutoTable plugin not loaded.");
         const titleLine1 = "Summary Report: Conjugate vaccine (PR-24079)";
         const titleLine2 = "icddr,b, Mohakhali, Dhaka, Bangladesh";
+
+        const allStrains = data.strains.map(item => item.strainName);
+        // UI checkboxes represent strains/serogroups to EXCLUDE.
+        const excluded = selectedStrains && selectedStrains.length ? selectedStrains : [];
+        const included = excluded.length ? allStrains.filter(s => !excluded.includes(s)) : allStrains;
+
+        const exclusionTitle = excluded.length ? `Excluding: ${excluded.join(', ')}` : "";
+
         doc.setFontSize(16); doc.setFont("helvetica", "bold"); doc.text(titleLine1, 40, 40);
         doc.setFontSize(12); doc.setFont("helvetica", "normal"); doc.text(titleLine2, 40, 58);
-        doc.setFontSize(9); doc.setTextColor(100); doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 40, 75);
+        if (exclusionTitle) {
+            doc.setFontSize(10);
+            doc.setTextColor(120);
+            doc.text(exclusionTitle, 40, 70);
+        }
+        doc.setFontSize(9); doc.setTextColor(100); doc.text(`Generated on: ${generatedAt.toLocaleString()}`, 40, exclusionTitle ? 83 : 75);
 
         const tableStyles = { cellPadding: 4, fontSize: 8, overflow: 'linebreak', cellWidth: 'wrap' };
         const commonHeadStyles = { fillColor: [243, 244, 246], textColor: [33, 37, 41], fontStyle: 'bold', halign: 'center', valign: 'middle' };
-        const defaultSelectedStrains = selectedStrains;
-        const strainBody = getStrainTableData(data, defaultSelectedStrains);
+
+        const strainBody = getStrainTableData(data, included);
+
+        // Culture-positive tables already use computeFilteredCultureTotals(..) (excluding excluded strains).
+        const filteredSiteTable = getFilteredTableData(data, excluded.length ? excluded : undefined);
+        const filteredAgeTable = getFilteredAgeTableData(data, excluded.length ? excluded : undefined);
 
         if (!includeSummary && !includeAge && !includePcr && !includeStrain) {
             doc.setFontSize(10);
@@ -225,7 +340,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
 
         if (includeSummary) {
             const head = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Enrollment', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Number of Diarrhoeal Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
-            const body = getTableData(data);
+            const body = excluded.length ? filteredSiteTable : getTableData(data);
             (doc as any).autoTable({ head, body, startY: currentY, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === body.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
             currentY = (doc as any).lastAutoTable.finalY || currentY + 120;
             currentY += 30;
@@ -234,7 +349,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
         if (includeAge) {
             doc.setFontSize(14); doc.setTextColor(0); doc.text("Age wise diarrheal events", 40, currentY);
             const ageHead = [[{ content: 'Age Distribution', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Culture Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
-            const ageBody = getAgeTableData(data);
+            const ageBody = excluded.length ? filteredAgeTable : getAgeTableData(data);
             (doc as any).autoTable({ head: ageHead, body: ageBody, startY: currentY + 20, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] } });
             currentY = (doc as any).lastAutoTable.finalY || currentY + 140;
             currentY += 30;
@@ -251,8 +366,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
 
         if (includeStrain) {
             const allStrains = data.strains.map(item => item.strainName);
-            const selected = selectedStrains?.length ? selectedStrains : allStrains;
-            const excluded = allStrains.filter(item => !selected.includes(item));
+            const excluded = selectedStrains && selectedStrains.length ? selectedStrains : [];
             const hasPreviousSections = includeSummary || includeAge || includePcr;
             if (hasPreviousSections) {
                 doc.addPage();

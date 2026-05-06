@@ -107,9 +107,34 @@ export interface AgeSummary {
 export interface SummaryData {
     sites: SiteSummary[];
     totals: SiteSummary;
+
+    /**
+     * Global strain distribution across ALL culture-positive events (pre-filter).
+     * Used for the Serotype/Serogroup Distribution table.
+     */
     strains: StrainSummary[];
+
+    /**
+     * Per-site culture-positive counts split by strain (pre-filter).
+     * Used to dynamically exclude serotypes/serogroups at export time.
+     */
+    siteStrainDistribution: Array<{
+        siteName: string;
+        strains: StrainSummary[];
+    }>;
+
+    /**
+     * Per-age-group culture-positive counts split by strain (pre-filter).
+     * Used to dynamically exclude serotypes/serogroups at export time.
+     */
+    ageStrainDistribution: Array<{
+        ageGroup: string;
+        strains: StrainSummary[];
+    }>;
+
     pcrSites: PcrSummary[];
     pcrTotals: PcrSummary;
+
     ageDistribution: AgeSummary[];
     detailedEvents: DetailedParticipantEvent[];
     participants: Participant[];
