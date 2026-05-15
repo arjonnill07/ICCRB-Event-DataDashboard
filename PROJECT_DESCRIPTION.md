@@ -1,8 +1,8 @@
 
-# ICCRB Event Data Dashboard
+# ICDDR,B Phase III Shigella Conjugate Vaccine Analytics Platform
 
 ## Overview
-The ICCRB Event Data Dashboard is a comprehensive web-based platform developed for the International Centre for Diarrhoeal Disease Research, Bangladesh (icddr,b). It is purpose-built to streamline the management, analysis, and visualization of complex event and participant data, which are critical for epidemiological studies, clinical research, and public health interventions. Leveraging modern technologies (React, TypeScript, Vite), the dashboard offers a user-friendly interface that bridges the gap between raw data and actionable insights, enabling researchers to make timely, evidence-based decisions.
+The ICDDR,B Phase III Shigella Conjugate Vaccine Analytics Platform is a comprehensive web-based platform developed for the International Centre for Diarrhoeal Disease Research, Bangladesh (icddr,b). It is purpose-built to streamline the management, analysis, and visualization of complex event and participant data, which are critical for epidemiological studies, clinical research, and public health interventions. Leveraging modern technologies (React, TypeScript, Vite), the platform offers a user-friendly interface that bridges the gap between raw data and actionable insights, enabling researchers to make timely, evidence-based decisions.
 
 ## Unique Features
 
