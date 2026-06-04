@@ -103,18 +103,49 @@ const getRowsFromWorkbook = (workbook: any, sheetName?: string): any[][] => {
 
 const normalizeHeader = (header: string): string => safeString(header).toLowerCase().replace(/[^a-z0-9]/g, '');
 
+const headerMatchesVariant = (header: string, variant: string): boolean => {
+    const normalizedHeader = normalizeHeader(header);
+    const normalizedVariant = normalizeHeader(variant);
+    if (!normalizedHeader || !normalizedVariant) return false;
+
+    // Generic headers like "Date", "ID", "Result" should only match exactly to avoid picking
+    // up unrelated fields such as "Diagnostic Date" or "Diagnostic Sending Date".
+    const genericExactOnly = new Set(['date', 'id', 'result', 'site']);
+    if (genericExactOnly.has(normalizedVariant)) {
+        return normalizedHeader === normalizedVariant;
+    }
+
+    return normalizedHeader === normalizedVariant || normalizedHeader.includes(normalizedVariant);
+};
+
 const findHeaderRowIndex = (rows: any[][], requiredVariants: string[][]): number => {
     const maxRows = Math.min(rows.length, 200);
     for (let i = 0; i < maxRows; i++) {
-        const pots = (rows[i] || []).map(h => normalizeHeader(safeString(h)));
-        if (requiredVariants.every(vars => vars.some(v => pots.some(header => header.includes(normalizeHeader(v)))))) return i;
+        const pots = (rows[i] || []).map(h => safeString(h));
+        if (requiredVariants.every(vars => vars.some(v => pots.some(header => headerMatchesVariant(header, v))))) return i;
     }
     return -1;
 };
 
 const findHeaderIndex = (headers: any[], names: string[]): number => {
-    const normalizedNames = names.map(n => normalizeHeader(n));
-    return headers.findIndex(h => normalizedNames.some(name => normalizeHeader(safeString(h)).includes(name)));
+    return headers.findIndex(h => names.some(name => headerMatchesVariant(h, name)));
+};
+
+const findPcrResultHeaderIndex = (headers: any[]): number => {
+    const headerValues = headers.map(h => normalizeHeader(safeString(h)));
+    for (let i = 0; i < headerValues.length; i++) {
+        const value = headerValues[i];
+        if (value === 'rtpcrresult' || value === 'rtpcr' || value === 'pcrresult' || value === 'pcr') return i;
+    }
+    for (let i = 0; i < headerValues.length; i++) {
+        const value = headerValues[i];
+        if (value.includes('rtpcr') && value.includes('result')) return i;
+        if (value.includes('pcrresult') && !value.includes('date')) return i;
+    }
+    return headers.findIndex(h => {
+        const normalized = normalizeHeader(safeString(h));
+        return /(rt[- ]?pcr|pcr)result\b/.test(normalized) && !normalized.includes('date');
+    });
 };
 
 const findSheetNameByHeaderVariants = (workbook: any, requiredVariants: string[][]): string | null => {
@@ -156,9 +187,11 @@ const normalizePcrResult = (raw: any): string => {
     const value = safeString(raw).trim();
     if (!value) return '';
     const normalized = value.toLowerCase();
-    if (/^\s*0\s*$/.test(value) || /\b(not|non|no|neg|negative|absent|undetected|not detected)\b/.test(normalized)) return 'Negative';
-    if (/^\s*1\s*$/.test(value) || /\b(pos|positive|detected|reactive|present|yes)\b/.test(normalized)) return 'Positive';
-    if (/^\s*(n\/a|na|unknown|missing|not tested|not done|pending|inconclusive)\s*$/.test(normalized)) return 'Not Tested';
+    if (/^\s*(?:0|\-|negative|neg|no|not|not tested|not done|absent|undetected|non[- ]?detected|n\/?a|na|unknown|missing|pending|inconclusive)\s*$/.test(normalized)) return 'Negative';
+    if (/^\s*(?:1|\+|positive|pos|p|detected|reactive|present|yes|y|true)\s*$/.test(normalized)) return 'Positive';
+    if (/^\s*(?:n\/a|na|unknown|missing|not tested|not done|pending|inconclusive)\s*$/.test(normalized)) return 'Not Tested';
+    if (/\b(?:positive|pos|detected|reactive|present|yes)\b/.test(normalized)) return 'Positive';
+    if (/\b(?:negative|neg|absent|undetected|no|not detected|non[- ]?detected)\b/.test(normalized)) return 'Negative';
     return value;
 };
 
@@ -355,8 +388,8 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
             const pcrHeaders = pcrRows[pcrHeaderIndex].map(h => safeString(h));
             console.info('PCR sheet header row values:', pcrHeaders);
             let randIndex = findHeaderIndex(pcrHeaders, ['Rand# ID', 'ID', 'Randomization Number', 'Rand#', 'Randomization No']);
-            const dateIndex = findHeaderIndex(pcrHeaders, ['Collection Date', 'Date', 'Sample Date']);
-            const pcrIndex = findHeaderIndex(pcrHeaders, ['RT-PCR result', 'PCR', 'RT-PCR Result', 'PCR Result', 'RT PCR result', 'RT PCR Result']);
+            const dateIndex = findHeaderIndex(pcrHeaders, ['Collection Date', 'Sample Date', 'Date']);
+            const pcrIndex = findPcrResultHeaderIndex(pcrHeaders);
             const cNoIndex = findHeaderIndex(pcrHeaders, ['Culture No', 'C.No']);
             const stoolIndex = findHeaderIndex(pcrHeaders, ['Stool No', 'Stool#']);
             const eventNoSiteIndex = findHeaderIndex(pcrHeaders, ['Event No (Site)', 'Event No', 'Site Event No', 'Site No']);
@@ -387,9 +420,11 @@ const parseEventsFile = async (file: File): Promise<DiarrhealEvent[]> => {
                     if (!rawPcrValue) continue;
                     totalPcrRows++;
                     const normalizedPcrValue = normalizePcrResult(rawPcrValue);
+                    const rawDateValue = row[pcrColMap.date];
+                    const dateString = parseDate(rawDateValue)?.toISOString().split('T')[0] || safeString(rawDateValue);
                     const reference = {
                         participant_id: pcrColMap.rand >= 0 ? safeString(row[pcrColMap.rand]) : '',
-                        event_date: safeString(row[pcrColMap.date]),
+                        event_date: dateString,
                         culture_no: safeString(row[pcrColMap.cNo]),
                         stool_no: pcrColMap.stoolNo >= 0 ? safeString(row[pcrColMap.stoolNo]) : '',
                         event_no_site: pcrColMap.eventNoSite >= 0 ? safeString(row[pcrColMap.eventNoSite]) : ''
