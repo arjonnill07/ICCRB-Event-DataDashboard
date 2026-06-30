@@ -1,6 +1,7 @@
 const normalizeEventNoSite = (val) => {
     if (!val) return '';
     let result = val.replace(/,?\s*\(?Day[- ]?\d+\)?\s*/gi, '').trim();
+    result = result.replace(/,?\s*\(?Supplemental\)?\s*/gi, '').trim();
     result = result.replace(/[-\s]+$/, '').trim();
     return result;
 };
@@ -29,6 +30,12 @@ const testCases = [
     "Mirzapur-251 (Day-01)",
     "Mirzapur-251 (Day-02)",
     "Mirzapur-251 (Day-03)",
+    // Supplemental variations
+    "Mirpur 207, Day-02, Supplemental",
+    "Mirpur 207 (Day-02) Supplemental",
+    "Mirpur 207, Supplemental",
+    "Mirpur 207 (Supplemental)",
+    "Mirpur 207",
     // Edge cases
     "Only Stool for PCR",
     "#N/A",
@@ -49,6 +56,13 @@ const groups = {
     "Tongi 77": ["Tongi 77 (Day-01)", "Tongi 77 (Day-02)"],
     "Korail-14": ["Korail-14 (Day-1)", "Korail-14 (Day-2)"],
     "Korail 248": ["Korail 248, Day-01", "Korail 248, Day-02"],
+    "Mirpur 207": [
+        "Mirpur 207, Day-02, Supplemental",
+        "Mirpur 207 (Day-02) Supplemental",
+        "Mirpur 207, Supplemental",
+        "Mirpur 207 (Supplemental)",
+        "Mirpur 207"
+    ],
 };
 
 Object.entries(groups).forEach(([expectedBase, samples]) => {

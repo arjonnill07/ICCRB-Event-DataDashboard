@@ -39,8 +39,9 @@ const normalizeEventNoSite = (val: string): string => {
     // Remove day designations in various formats:
     // - (Day-01), (Day 01), Day-01, Day 01, , Day-01, etc.
     // Handles: optional comma, optional whitespace, Day (with optional parentheses), optional - or space, digits
-    // Then clean up any trailing dashes or extra spaces left behind
     let result = val.replace(/,?\s*\(?Day[- ]?\d+\)?\s*/gi, '').trim();
+    // Remove supplemental designations in similar formats (optional leading comma, optional surrounding parentheses, and optional whitespace)
+    result = result.replace(/,?\s*\(?Supplemental\)?\s*/gi, '').trim();
     // Clean up trailing dashes and extra spaces
     result = result.replace(/[-\s]+$/, '').trim();
     return result;
