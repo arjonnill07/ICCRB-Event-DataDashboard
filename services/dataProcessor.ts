@@ -44,7 +44,8 @@ const normalizeEventNoSite = (val: string): string => {
     result = result.replace(/,?\s*\(?Supplemental\)?\s*/gi, '').trim();
     // Clean up trailing dashes and extra spaces
     result = result.replace(/[-\s]+$/, '').trim();
-    return result;
+    // Treat comma and whitespace variants of the same case number identically.
+    return result.replace(/\s*,\s*/g, ' ').replace(/\s+/g, ' ').trim();
 };
 
 const addDays = (date: Date, days: number): Date => {
@@ -476,7 +477,8 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
 
     const reportedEpisodesMap = new Map<string, DiarrhealEvent[]>();
     eData.forEach(e => {
-        const baseEventId = e.event_no_site ? normalizeEventNoSite(e.event_no_site) : `UN-${e.participant_id}-${e.event_date}`;
+        const normalizedEventId = normalizeEventNoSite(e.event_no_site || '');
+        const baseEventId = normalizedEventId || `UN-${e.participant_id}-${e.event_date}-${e.culture_no}-${e.stool_no}`;
         const groupKey = `${e.participant_id}|${baseEventId}`;
         const list = reportedEpisodesMap.get(groupKey) || [];
         list.push(e);
@@ -646,6 +648,17 @@ export const processFiles = async (participantsFile: File, eventsFile: File): Pr
         pcrSites: Array.from(pcrSummaries.values()),
         pcrTotals: { siteName: "Total", totalTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.totalTests, 0), totalPositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.totalPositive, 0), after1stDoseTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after1stDoseTests, 0), after1stDosePositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after1stDosePositive, 0), after2ndDoseTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after2ndDoseTests, 0), after2ndDosePositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after2ndDosePositive, 0), after30DaysTests: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after30DaysTests, 0), after30DaysPositive: Array.from(pcrSummaries.values()).reduce((s, x) => s + x.after30DaysPositive, 0) },
         ageDistribution: Array.from(ageSummaries.values()).filter(a => a.totalEvents > 0),
+        ageTotals: {
+            ageGroup: "Total",
+            totalEvents: Array.from(ageSummaries.values()).reduce((s, x) => s + x.totalEvents, 0),
+            culturePositive: Array.from(ageSummaries.values()).reduce((s, x) => s + x.culturePositive, 0),
+            after1stDoseEvents: Array.from(ageSummaries.values()).reduce((s, x) => s + x.after1stDoseEvents, 0),
+            after1stDoseCulturePositive: Array.from(ageSummaries.values()).reduce((s, x) => s + x.after1stDoseCulturePositive, 0),
+            after2ndDoseEvents: Array.from(ageSummaries.values()).reduce((s, x) => s + x.after2ndDoseEvents, 0),
+            after2ndDoseCulturePositive: Array.from(ageSummaries.values()).reduce((s, x) => s + x.after2ndDoseCulturePositive, 0),
+            after30Days2ndDoseEvents: Array.from(ageSummaries.values()).reduce((s, x) => s + x.after30Days2ndDoseEvents, 0),
+            after30Days2ndDoseCulturePositive: Array.from(ageSummaries.values()).reduce((s, x) => s + x.after30Days2ndDoseCulturePositive, 0),
+        },
         detailedEvents: detailedEvents.sort((a, b) => a.site.localeCompare(b.site) || a.participantId.localeCompare(b.participantId)),
         participants: pData,
         recurrentCases: recurrentCases.sort((a, b) => b.totalEpisodes - a.totalEpisodes),

@@ -74,7 +74,19 @@ const computeFilteredCultureTotals = (data: SummaryData, excludedStrains: string
 };
 
 const getAgeTableData = (data: SummaryData): (string | number)[][] => {
-    return data.ageDistribution.map(item => [
+    const ageTotals = data.ageTotals ?? {
+        ageGroup: 'Total',
+        totalEvents: data.ageDistribution.reduce((s, x) => s + x.totalEvents, 0),
+        culturePositive: data.ageDistribution.reduce((s, x) => s + x.culturePositive, 0),
+        after1stDoseEvents: data.ageDistribution.reduce((s, x) => s + x.after1stDoseEvents, 0),
+        after1stDoseCulturePositive: data.ageDistribution.reduce((s, x) => s + x.after1stDoseCulturePositive, 0),
+        after2ndDoseEvents: data.ageDistribution.reduce((s, x) => s + x.after2ndDoseEvents, 0),
+        after2ndDoseCulturePositive: data.ageDistribution.reduce((s, x) => s + x.after2ndDoseCulturePositive, 0),
+        after30Days2ndDoseEvents: data.ageDistribution.reduce((s, x) => s + x.after30Days2ndDoseEvents, 0),
+        after30Days2ndDoseCulturePositive: data.ageDistribution.reduce((s, x) => s + x.after30Days2ndDoseCulturePositive, 0),
+    };
+    const allRows = [...data.ageDistribution, ageTotals];
+    return allRows.map(item => [
         item.ageGroup,
         item.totalEvents,
         `${item.culturePositive} (${formatPercent(item.culturePositive, item.totalEvents)})`,
@@ -120,8 +132,29 @@ const getFilteredTableData = (data: SummaryData, selectedStrains: string[] | und
 const getFilteredAgeTableData = (data: SummaryData, selectedStrains: string[] | undefined): (string | number)[][] => {
     const filtered = computeFilteredCultureTotals(data, selectedStrains);
 
-    return data.ageDistribution.map(item => {
-        const adjusted = filtered.ageAdjusted.get(item.ageGroup) ?? { culturePositive: 0, after1: 0, after2: 0, after30: 0 };
+    const totalCulturePos = Array.from(filtered.ageAdjusted.values()).reduce((s, x) => s + x.culturePositive, 0);
+    const totalAfter1 = Array.from(filtered.ageAdjusted.values()).reduce((s, x) => s + x.after1, 0);
+    const totalAfter2 = Array.from(filtered.ageAdjusted.values()).reduce((s, x) => s + x.after2, 0);
+    const totalAfter30 = Array.from(filtered.ageAdjusted.values()).reduce((s, x) => s + x.after30, 0);
+
+    const ageTotals = data.ageTotals ?? {
+        ageGroup: 'Total',
+        totalEvents: data.ageDistribution.reduce((s, x) => s + x.totalEvents, 0),
+        culturePositive: data.ageDistribution.reduce((s, x) => s + x.culturePositive, 0),
+        after1stDoseEvents: data.ageDistribution.reduce((s, x) => s + x.after1stDoseEvents, 0),
+        after1stDoseCulturePositive: data.ageDistribution.reduce((s, x) => s + x.after1stDoseCulturePositive, 0),
+        after2ndDoseEvents: data.ageDistribution.reduce((s, x) => s + x.after2ndDoseEvents, 0),
+        after2ndDoseCulturePositive: data.ageDistribution.reduce((s, x) => s + x.after2ndDoseCulturePositive, 0),
+        after30Days2ndDoseEvents: data.ageDistribution.reduce((s, x) => s + x.after30Days2ndDoseEvents, 0),
+        after30Days2ndDoseCulturePositive: data.ageDistribution.reduce((s, x) => s + x.after30Days2ndDoseCulturePositive, 0),
+    };
+
+    const allRows = [...data.ageDistribution, ageTotals];
+    return allRows.map(item => {
+        const adjusted =
+            item.ageGroup === ageTotals.ageGroup
+                ? { culturePositive: totalCulturePos, after1: totalAfter1, after2: totalAfter2, after30: totalAfter30 }
+                : (filtered.ageAdjusted.get(item.ageGroup) ?? { culturePositive: 0, after1: 0, after2: 0, after30: 0 });
 
         return [
             item.ageGroup,
@@ -336,57 +369,140 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
             return;
         }
 
-        let currentY = 90;
+        let currentY = exclusionTitle ? 95 : 90;
+
+        const checkPageBreak = (requiredHeight: number): void => {
+            const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+            const bottomMargin = 40;
+            if (currentY + requiredHeight > pageHeight - bottomMargin) {
+                doc.addPage();
+                currentY = 40;
+            }
+        };
 
         if (includeSummary) {
             const head = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Enrollment', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Number of Diarrhoeal Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
             const body = excluded.length ? filteredSiteTable : getTableData(data);
-            (doc as any).autoTable({ head, body, startY: currentY, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === body.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
-            currentY = (doc as any).lastAutoTable.finalY || currentY + 120;
-            currentY += 30;
+            const estHeight = 40 + body.length * 20;
+            checkPageBreak(estHeight);
+
+            (doc as any).autoTable({
+                head,
+                body,
+                startY: currentY,
+                theme: 'grid',
+                margin: { left: 40, right: 40 },
+                headStyles: commonHeadStyles,
+                styles: tableStyles,
+                alternateRowStyles: { fillColor: [250, 250, 250] },
+                pageBreak: 'avoid',
+                didParseCell: function(hookData: any) {
+                    if (hookData.section === 'body' && hookData.row.index === body.length - 1) {
+                        hookData.cell.styles.fontStyle = 'bold';
+                        hookData.cell.styles.fillColor = [229, 231, 235];
+                    }
+                }
+            });
+            currentY = ((doc as any).lastAutoTable?.finalY || currentY + 120) + 25;
         }
 
         if (includeAge) {
-            doc.setFontSize(14); doc.setTextColor(0); doc.text("Age wise diarrheal events", 40, currentY);
             const ageHead = [[{ content: 'Age Distribution', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Culture Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
             const ageBody = excluded.length ? filteredAgeTable : getAgeTableData(data);
-            (doc as any).autoTable({ head: ageHead, body: ageBody, startY: currentY + 20, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] } });
-            currentY = (doc as any).lastAutoTable.finalY || currentY + 140;
-            currentY += 30;
+            const estHeight = 30 + 40 + ageBody.length * 20;
+            checkPageBreak(estHeight);
+
+            doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
+            doc.text("Age wise diarrheal events", 40, currentY);
+
+            (doc as any).autoTable({
+                head: ageHead,
+                body: ageBody,
+                startY: currentY + 15,
+                theme: 'grid',
+                margin: { left: 40, right: 40 },
+                headStyles: commonHeadStyles,
+                styles: tableStyles,
+                alternateRowStyles: { fillColor: [250, 250, 250] },
+                pageBreak: 'avoid',
+                didParseCell: function(hookData: any) {
+                    if (hookData.section === 'body' && hookData.row.index === ageBody.length - 1) {
+                        hookData.cell.styles.fontStyle = 'bold';
+                        hookData.cell.styles.fillColor = [229, 231, 235];
+                    }
+                }
+            });
+            currentY = ((doc as any).lastAutoTable?.finalY || currentY + 140) + 25;
         }
 
         if (includePcr) {
-            doc.setFontSize(14); doc.setTextColor(0); doc.text("RT-PCR Result", 40, currentY);
             const pcrHead = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Tests', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Tested', 'Positive', 'Tested', 'Positive', 'Tested', 'Positive']];
             const pcrBody = getPcrTableData(data);
-            (doc as any).autoTable({ head: pcrHead, body: pcrBody, startY: currentY + 20, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: tableStyles, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === pcrBody.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
-            currentY = (doc as any).lastAutoTable.finalY || currentY + 140;
-            currentY += 30;
+            const estHeight = 30 + 40 + pcrBody.length * 20;
+            checkPageBreak(estHeight);
+
+            doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
+            doc.text("RT-PCR Result", 40, currentY);
+
+            (doc as any).autoTable({
+                head: pcrHead,
+                body: pcrBody,
+                startY: currentY + 15,
+                theme: 'grid',
+                margin: { left: 40, right: 40 },
+                headStyles: commonHeadStyles,
+                styles: tableStyles,
+                alternateRowStyles: { fillColor: [250, 250, 250] },
+                pageBreak: 'avoid',
+                didParseCell: function(hookData: any) {
+                    if (hookData.section === 'body' && hookData.row.index === pcrBody.length - 1) {
+                        hookData.cell.styles.fontStyle = 'bold';
+                        hookData.cell.styles.fillColor = [229, 231, 235];
+                    }
+                }
+            });
+            currentY = ((doc as any).lastAutoTable?.finalY || currentY + 140) + 25;
         }
 
         if (includeStrain) {
             const allStrains = data.strains.map(item => item.strainName);
             const excluded = selectedStrains && selectedStrains.length ? selectedStrains : [];
-            const hasPreviousSections = includeSummary || includeAge || includePcr;
-            if (hasPreviousSections) {
-                doc.addPage();
-            }
-            currentY = 90;
-            doc.setFontSize(14); doc.setTextColor(0); doc.text("Serotype/Serogroup Distribution of Culture Positive Cases", 40, currentY);
-            currentY += 20;
+            const exclusionNoteHeight = excluded.length > 0 ? 20 : 0;
+            const estHeight = 30 + exclusionNoteHeight + 25 + strainBody.length * 20;
+            checkPageBreak(estHeight);
+
+            doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
+            doc.text("Serotype/Serogroup Distribution of Culture Positive Cases", 40, currentY);
+            currentY += 18;
 
             if (excluded.length > 0) {
-                doc.setFontSize(10); doc.setTextColor(100);
+                doc.setFontSize(10); doc.setTextColor(100); doc.setFont("helvetica", "normal");
                 const excludedNames = excluded.join(', ');
                 const exclusionText = excluded.length === allStrains.length
                     ? "Note: No serotypes have been selected; the table only displays the total summary row."
                     : `Note: ${excluded.length} serotype${excluded.length > 1 ? 's' : ''} excluded: ${excludedNames}.`;
                 doc.text(exclusionText, 40, currentY);
-                currentY += 18;
+                currentY += 15;
             }
 
             const strainHead = [["Serotype/Serogroup", "Total Positive Cases", "After 1st dose", "After 2nd dose", "After 30 days of the 2nd dose"]];
-            (doc as any).autoTable({ head: strainHead, body: strainBody, startY: currentY + 10, theme: 'grid', margin: { left: 40, right: 40 }, headStyles: commonHeadStyles, styles: { ...tableStyles, halign: 'center' }, alternateRowStyles: { fillColor: [250, 250, 250] }, didParseCell: function(hookData: any) { if (hookData.section === 'body' && hookData.row.index === strainBody.length - 1) { hookData.cell.styles.fontStyle = 'bold'; hookData.cell.styles.fillColor = [229, 231, 235]; } } });
+            (doc as any).autoTable({
+                head: strainHead,
+                body: strainBody,
+                startY: currentY,
+                theme: 'grid',
+                margin: { left: 40, right: 40 },
+                headStyles: commonHeadStyles,
+                styles: { ...tableStyles, halign: 'center' },
+                alternateRowStyles: { fillColor: [250, 250, 250] },
+                pageBreak: 'avoid',
+                didParseCell: function(hookData: any) {
+                    if (hookData.section === 'body' && hookData.row.index === strainBody.length - 1) {
+                        hookData.cell.styles.fontStyle = 'bold';
+                        hookData.cell.styles.fillColor = [229, 231, 235];
+                    }
+                }
+            });
         }
 
         doc.save('Summary_Report_Conjugate_vaccine_PR-24079_icddrb.pdf');

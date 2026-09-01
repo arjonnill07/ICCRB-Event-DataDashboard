@@ -211,20 +211,23 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-300">
-                            {data.ageDistribution.map(a => (
-                                <tr key={a.ageGroup} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-5 text-base font-black text-slate-950">{a.ageGroup}</td>
-                                    <td className="px-4 py-5 text-base text-center text-slate-900 font-bold">{a.totalEvents}</td>
-                                    <td className="px-4 py-5 text-center">
-                                        <div className="text-lg font-black text-slate-950">{a.culturePositive}</div>
-                                        <div className="text-[11px] text-slate-600 font-black">{formatPercent(a.culturePositive, a.totalEvents)}</div>
-                                        {bar(a.culturePositive, a.totalEvents, 'bg-indigo-700')}
-                                    </td>
-                                    <td className="px-4 py-5 text-lg text-center text-teal-950 font-black bg-teal-50/40">{a.after1stDoseCulturePositive}</td>
-                                    <td className="px-4 py-5 text-lg text-center text-amber-950 font-black bg-amber-50/40">{a.after2ndDoseCulturePositive}</td>
-                                    <td className="px-4 py-5 text-lg text-center text-rose-950 font-black bg-rose-50/40">{a.after30Days2ndDoseCulturePositive}</td>
-                                </tr>
-                            ))}
+                            {[...data.ageDistribution, data.ageTotals].map((a, idx) => {
+                                const isTotal = idx === data.ageDistribution.length;
+                                return (
+                                    <tr key={a.ageGroup} className={`${isTotal ? 'bg-slate-100 font-black' : 'hover:bg-slate-50 transition-colors'}`}>
+                                        <td className="px-6 py-5 text-base font-black text-slate-950">{a.ageGroup}</td>
+                                        <td className="px-4 py-5 text-base text-center text-slate-900 font-bold">{a.totalEvents}</td>
+                                        <td className="px-4 py-5 text-center">
+                                            <div className="text-lg font-black text-slate-950">{a.culturePositive}</div>
+                                            <div className="text-[11px] text-slate-600 font-black">{formatPercent(a.culturePositive, a.totalEvents)}</div>
+                                            {bar(a.culturePositive, a.totalEvents, 'bg-indigo-700')}
+                                        </td>
+                                        <td className="px-4 py-5 text-lg text-center text-teal-950 font-black bg-teal-50/40">{a.after1stDoseCulturePositive}</td>
+                                        <td className="px-4 py-5 text-lg text-center text-amber-950 font-black bg-amber-50/40">{a.after2ndDoseCulturePositive}</td>
+                                        <td className="px-4 py-5 text-lg text-center text-rose-950 font-black bg-rose-50/40">{a.after30Days2ndDoseCulturePositive}</td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
