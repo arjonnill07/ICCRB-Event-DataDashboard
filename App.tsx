@@ -25,7 +25,7 @@ const App: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [reportGeneratedAt, setReportGeneratedAt] = useState<Date | null>(null);
     const [selectedExportSite, setSelectedExportSite] = useState<string>("All Sites");
-    const [pdfOptions, setPdfOptions] = useState({ summary: true, age: true, pcr: true, strain: true });
+    const [pdfOptions, setPdfOptions] = useState({ summary: true, age: true, pcr: true, pcrAge: true, strain: true });
     const [selectedStrains, setSelectedStrains] = useState<string[]>([]);
     const [showRecurrentCases, setShowRecurrentCases] = useState(false);
 
@@ -57,6 +57,7 @@ const App: React.FC = () => {
         includeSummary: pdfOptions.summary,
         includeAge: pdfOptions.age,
         includePcr: pdfOptions.pcr,
+        includePcrAge: pdfOptions.pcrAge,
         includeStrain: pdfOptions.strain,
         selectedStrains
     });
@@ -164,9 +165,10 @@ const App: React.FC = () => {
 
                                     <div className="mt-4 grid grid-cols-2 gap-3">
                                         {[
-                                            { key: 'summary', label: 'Site Summary' },
-                                            { key: 'age', label: 'Age Distribution' },
-                                            { key: 'pcr', label: 'RT-PCR Result' },
+                                            { key: 'summary', label: 'Site Summary (Culture)' },
+                                            { key: 'age', label: 'Culture Age Distribution' },
+                                            { key: 'pcr', label: 'RT-PCR Site Summary' },
+                                            { key: 'pcrAge', label: 'RT-PCR Age Distribution' },
                                             { key: 'strain', label: 'Serotype/Serogroup' }
                                         ].map(section => (
                                             <label key={section.key} className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">

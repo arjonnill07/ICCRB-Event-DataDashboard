@@ -15,17 +15,17 @@ const bar = (num: number, den: number, color: string) => {
 export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
     return (
         <div className="space-y-16 pb-20">
-            {/* Main Site Table */}
+            {/* Main Site Table - Culture */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
                 <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-3 h-7 bg-teal-700 rounded-full"></div>
-                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Site Enrollment & Validated Case Breakdown</h3>
+                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Site Enrollment & Validated Case Breakdown (Culture)</h3>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-100 px-2.5 py-1 rounded-full shadow-sm">
                             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            Grouped by Event No (Site)
+                            Culture Diagnostics
                         </span>
                     </div>
                 </div>
@@ -129,11 +129,18 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                 </div>
             </div>
 
-            {/* RT-PCR Result Table - UPDATED HEADERS */}
+            {/* RT-PCR Diagnostic Statistics by Site */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
-                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
-                    <div className="w-3 h-7 bg-emerald-700 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">RT-PCR Diagnostic Statistics (Validated Episodes)</h3>
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-7 bg-emerald-700 rounded-full"></div>
+                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">RT-PCR Diagnostic Statistics by Site (Validated Episodes)</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full shadow-sm">
+                            RT-PCR Diagnostics
+                        </span>
+                    </div>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -192,11 +199,16 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                 </div>
             </div>
 
-            {/* Age Distribution */}
+            {/* Age Distribution Analytics - Culture */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
-                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
-                    <div className="w-3 h-7 bg-indigo-700 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Age Distribution Analytics (Reported Events)</h3>
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-7 bg-indigo-700 rounded-full"></div>
+                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Age Distribution Analytics — Culture (Reported Events)</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full shadow-sm">
+                        Culture Diagnostic
+                    </span>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
@@ -214,7 +226,7 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                             {[...data.ageDistribution, data.ageTotals].map((a, idx) => {
                                 const isTotal = idx === data.ageDistribution.length;
                                 return (
-                                    <tr key={a.ageGroup} className={`${isTotal ? 'bg-slate-100 font-black' : 'hover:bg-slate-50 transition-colors'}`}>
+                                    <tr key={`culture-age-${a.ageGroup}`} className={`${isTotal ? 'bg-slate-100 font-black' : 'hover:bg-slate-50 transition-colors'}`}>
                                         <td className="px-6 py-5 text-base font-black text-slate-950">{a.ageGroup}</td>
                                         <td className="px-4 py-5 text-base text-center text-slate-900 font-bold">{a.totalEvents}</td>
                                         <td className="px-4 py-5 text-center">
@@ -233,11 +245,84 @@ export const SummaryTable: React.FC<{ data: SummaryData }> = ({ data }) => {
                 </div>
             </div>
 
+            {/* Age Distribution Analytics - RT-PCR (NEW) */}
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-7 bg-emerald-600 rounded-full"></div>
+                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Age Distribution Analytics — RT-PCR (Validated Episodes)</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full shadow-sm">
+                        RT-PCR Diagnostic
+                    </span>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="bg-slate-900 text-white">
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle border-r border-slate-700">Age Bracket</th>
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700 bg-slate-800">Episodes Tested</th>
+                                <th rowSpan={2} className="px-6 py-5 font-black uppercase text-xs tracking-widest align-middle text-center border-r border-slate-700">Positive Episodes</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 1</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b border-r border-slate-700 bg-slate-900">Post-Dose 2</th>
+                                <th colSpan={2} className="px-6 py-3 text-center text-[11px] font-black uppercase tracking-widest border-b bg-slate-900">Post-30D Follow-up</th>
+                            </tr>
+                            <tr className="bg-slate-700 text-slate-100">
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Tested</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Positive (%)</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Tested</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Positive (%)</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold border-r border-slate-600 text-center">Tested</th>
+                                <th className="px-4 py-3 text-[10px] uppercase tracking-wider font-bold text-center">Positive (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-300">
+                            {[...data.pcrAgeDistribution, data.pcrAgeTotals].map((a, idx) => {
+                                const isTotal = idx === data.pcrAgeDistribution.length;
+                                return (
+                                    <tr key={`pcr-age-${a.ageGroup}`} className={`${isTotal ? 'bg-slate-100 font-black' : 'hover:bg-slate-50 transition-colors'}`}>
+                                        <td className="px-6 py-5 text-base font-black text-slate-950 border-r border-slate-200">{a.ageGroup}</td>
+                                        <td className="px-6 py-5 text-lg text-center border-r border-slate-200 font-black text-slate-900 bg-slate-50/50">{a.totalTests}</td>
+                                        <td className="px-6 py-5 text-base text-center border-r border-slate-200 font-bold">
+                                            <div className="text-emerald-950">{a.totalPositive}</div>
+                                            <div className="text-[11px] text-emerald-600 font-black uppercase tracking-tighter mt-0.5">{formatPercent(a.totalPositive, a.totalTests)} Rate</div>
+                                        </td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-slate-50/30 text-slate-900 font-bold">{a.after1stDoseTests}</td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-emerald-50/50">
+                                            <div className="text-lg font-black text-emerald-950">{a.after1stDosePositive}</div>
+                                            <div className="text-[11px] text-emerald-800 font-black">{formatPercent(a.after1stDosePositive, a.after1stDoseTests)}</div>
+                                            {bar(a.after1stDosePositive, a.after1stDoseTests, 'bg-emerald-600')}
+                                        </td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-slate-50/30 text-slate-900 font-bold">{a.after2ndDoseTests}</td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-emerald-50/50">
+                                            <div className="text-lg font-black text-emerald-950">{a.after2ndDosePositive}</div>
+                                            <div className="text-[11px] text-emerald-800 font-black">{formatPercent(a.after2ndDosePositive, a.after2ndDoseTests)}</div>
+                                            {bar(a.after2ndDosePositive, a.after2ndDoseTests, 'bg-emerald-600')}
+                                        </td>
+                                        <td className="px-4 py-5 text-center border-r border-slate-200 bg-slate-50/30 text-slate-900 font-bold">{a.after30DaysTests}</td>
+                                        <td className="px-4 py-5 text-center bg-emerald-50/50">
+                                            <div className="text-lg font-black text-emerald-950">{a.after30DaysPositive}</div>
+                                            <div className="text-[11px] text-emerald-800 font-black">{formatPercent(a.after30DaysPositive, a.after30DaysTests)}</div>
+                                            {bar(a.after30DaysPositive, a.after30DaysTests, 'bg-emerald-600')}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             {/* Top Serotype Prevalence */}
             <div className="bg-white rounded-2xl shadow-lg border border-slate-300 overflow-hidden">
-                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center gap-3">
-                    <div className="w-3 h-7 bg-slate-900 rounded-full"></div>
-                    <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Top Serotype Prevalence (Reported Data)</h3>
+                <div className="bg-slate-100 px-6 py-5 border-b border-slate-300 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-3 h-7 bg-slate-900 rounded-full"></div>
+                        <h3 className="font-black text-slate-900 uppercase tracking-tight text-xl">Top Serotype Prevalence (Culture Confirmed Data)</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-600 bg-slate-200/60 px-2.5 py-1 rounded-full shadow-sm">
+                        Serogroups
+                    </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 divide-x divide-slate-200">
                     {data.strains.slice(0, 3).map(s => (

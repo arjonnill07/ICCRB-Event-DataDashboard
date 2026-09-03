@@ -104,6 +104,18 @@ export interface AgeSummary {
   after30Days2ndDoseCulturePositive: number;
 }
 
+export interface PcrAgeSummary {
+  ageGroup: string;
+  totalTests: number;
+  totalPositive: number;
+  after1stDoseTests: number;
+  after1stDosePositive: number;
+  after2ndDoseTests: number;
+  after2ndDosePositive: number;
+  after30DaysTests: number;
+  after30DaysPositive: number;
+}
+
 export interface SummaryData {
     sites: SiteSummary[];
     totals: SiteSummary;
@@ -137,6 +149,9 @@ export interface SummaryData {
 
     ageDistribution: AgeSummary[];
     ageTotals: AgeSummary;
+
+    pcrAgeDistribution: PcrAgeSummary[];
+    pcrAgeTotals: PcrAgeSummary;
     detailedEvents: DetailedParticipantEvent[];
     participants: Participant[];
     recurrentCases: RecurrentCase[];

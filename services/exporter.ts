@@ -185,6 +185,32 @@ const getPcrTableData = (data: SummaryData): (string | number)[][] => {
     ]);
 };
 
+const getPcrAgeTableData = (data: SummaryData): (string | number)[][] => {
+    const pcrAgeTotals = data.pcrAgeTotals ?? {
+        ageGroup: 'Total',
+        totalTests: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.totalTests, 0),
+        totalPositive: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.totalPositive, 0),
+        after1stDoseTests: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.after1stDoseTests, 0),
+        after1stDosePositive: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.after1stDosePositive, 0),
+        after2ndDoseTests: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.after2ndDoseTests, 0),
+        after2ndDosePositive: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.after2ndDosePositive, 0),
+        after30DaysTests: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.after30DaysTests, 0),
+        after30DaysPositive: (data.pcrAgeDistribution || []).reduce((s, x) => s + x.after30DaysPositive, 0),
+    };
+    const allRows = [...(data.pcrAgeDistribution || []), pcrAgeTotals];
+    return allRows.map(item => [
+        item.ageGroup,
+        item.totalTests,
+        `${item.totalPositive} (${formatPercent(item.totalPositive, item.totalTests)})`,
+        item.after1stDoseTests,
+        `${item.after1stDosePositive} (${formatPercent(item.after1stDosePositive, item.after1stDoseTests)})`,
+        item.after2ndDoseTests,
+        `${item.after2ndDosePositive} (${formatPercent(item.after2ndDosePositive, item.after2ndDoseTests)})`,
+        item.after30DaysTests,
+        `${item.after30DaysPositive} (${formatPercent(item.after30DaysPositive, item.after30DaysTests)})`,
+    ]);
+};
+
 const getStrainTableData = (data: SummaryData, selectedStrains?: string[]): (string | number)[][] => {
     const filteredStrains = selectedStrains
         ? data.strains.filter(item => selectedStrains.includes(item.strainName))
@@ -267,13 +293,21 @@ export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
     const header1 = ["Site Name", "Enrollment", "Number of Diarrhoeal Events", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
     const header2 = [null, null, null, "Diarrheal events", "Culture positive", "Diarrheal events", "Culture positive", "Diarrheal events", "Culture positive"];
     const siteTableData = getTableData(data);
-    const ageTitle = ["Age wise diarrheal events"];
-    const ageHeader1 = ["Age Distribution", "Total Events", "Culture Positive", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
+    
+    const ageTitle = ["Age wise diarrheal events (Culture)"];
+    const ageHeader1 = ["Age Distribution (Culture)", "Total Events", "Culture Positive", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
     const ageTableData = getAgeTableData(data);
-    const pcrTitle = ["RT-PCR Result"];
+    
+    const pcrTitle = ["RT-PCR Diagnostic Statistics by Site"];
     const pcrHeader1 = ["Site Name", "Total Tests", "Total Positive", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
     const pcrHeader2 = [null, null, null, "Tested", "Positive", "Tested", "Positive", "Tested", "Positive"];
     const pcrTableData = getPcrTableData(data);
+
+    const pcrAgeTitle = ["Age wise RT-PCR Diagnostic Statistics"];
+    const pcrAgeHeader1 = ["Age Distribution (RT-PCR)", "Total Tests", "Total Positive", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
+    const pcrAgeHeader2 = [null, null, null, "Tested", "Positive", "Tested", "Positive", "Tested", "Positive"];
+    const pcrAgeTableData = getPcrAgeTableData(data);
+
     const strainTitle = ["Serotype/Serogroup Distribution of Culture Positive Cases"];
     const strainHeader = ["Serotype/Serogroup", "Total Positive Cases", "After 1st dose", "After 2nd dose", "After 30 days of the 2nd dose"];
     const strainTableData = getStrainTableData(data);
@@ -287,23 +321,45 @@ export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
         [], [],
         pcrTitle, pcrHeader1, pcrHeader2, ...pcrTableData,
         [], [],
+        pcrAgeTitle, pcrAgeHeader1, pcrAgeHeader2, ...pcrAgeTableData,
+        [], [],
         strainTitle, strainHeader, ...strainTableData
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(finalData);
     const ageStartRow = 4 + siteTableData.length + 2;
-    const pcrStartRow = ageStartRow + 4 + ageTableData.length + 2;
-    const strainStartRow = pcrStartRow + 4 + pcrTableData.length + 2; 
+    const pcrStartRow = ageStartRow + 3 + ageTableData.length + 2;
+    const pcrAgeStartRow = pcrStartRow + 3 + pcrTableData.length + 2;
+    const strainStartRow = pcrAgeStartRow + 3 + pcrAgeTableData.length + 2; 
 
     const merges = [
         { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } }, { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } }, { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } },
         { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, { s: { r: 2, c: 5 }, e: { r: 2, c: 6 } }, { s: { r: 2, c: 7 }, e: { r: 2, c: 8 } },
-        { s: { r: ageStartRow, c: 0 }, e: { r: ageStartRow, c: 4 } }, { s: { r: ageStartRow + 1, c: 0 }, e: { r: ageStartRow + 2, c: 0 } },
-        { s: { r: ageStartRow + 1, c: 1 }, e: { r: ageStartRow + 2, c: 1 } }, { s: { r: ageStartRow + 1, c: 2 }, e: { r: ageStartRow + 2, c: 2 } },
-        { s: { r: ageStartRow + 1, c: 3 }, e: { r: ageStartRow + 1, c: 4 } }, { s: { r: ageStartRow + 1, c: 5 }, e: { r: ageStartRow + 1, c: 6 } }, { s: { r: ageStartRow + 1, c: 7 }, e: { r: ageStartRow + 1, c: 8 } },
-        { s: { r: pcrStartRow, c: 0 }, e: { r: pcrStartRow, c: 4 } }, { s: { r: pcrStartRow + 1, c: 0 }, e: { r: pcrStartRow + 2, c: 0 } },
-        { s: { r: pcrStartRow + 1, c: 1 }, e: { r: pcrStartRow + 2, c: 1 } }, { s: { r: pcrStartRow + 1, c: 2 }, e: { r: pcrStartRow + 2, c: 2 } },
-        { s: { r: pcrStartRow + 1, c: 3 }, e: { r: pcrStartRow + 1, c: 4 } }, { s: { r: pcrStartRow + 1, c: 5 }, e: { r: pcrStartRow + 1, c: 6 } }, { s: { r: pcrStartRow + 1, c: 7 }, e: { r: pcrStartRow + 1, c: 8 } },
+        
+        { s: { r: ageStartRow, c: 0 }, e: { r: ageStartRow, c: 4 } },
+        { s: { r: ageStartRow + 1, c: 0 }, e: { r: ageStartRow + 2, c: 0 } },
+        { s: { r: ageStartRow + 1, c: 1 }, e: { r: ageStartRow + 2, c: 1 } },
+        { s: { r: ageStartRow + 1, c: 2 }, e: { r: ageStartRow + 2, c: 2 } },
+        { s: { r: ageStartRow + 1, c: 3 }, e: { r: ageStartRow + 1, c: 4 } },
+        { s: { r: ageStartRow + 1, c: 5 }, e: { r: ageStartRow + 1, c: 6 } },
+        { s: { r: ageStartRow + 1, c: 7 }, e: { r: ageStartRow + 1, c: 8 } },
+
+        { s: { r: pcrStartRow, c: 0 }, e: { r: pcrStartRow, c: 4 } },
+        { s: { r: pcrStartRow + 1, c: 0 }, e: { r: pcrStartRow + 2, c: 0 } },
+        { s: { r: pcrStartRow + 1, c: 1 }, e: { r: pcrStartRow + 2, c: 1 } },
+        { s: { r: pcrStartRow + 1, c: 2 }, e: { r: pcrStartRow + 2, c: 2 } },
+        { s: { r: pcrStartRow + 1, c: 3 }, e: { r: pcrStartRow + 1, c: 4 } },
+        { s: { r: pcrStartRow + 1, c: 5 }, e: { r: pcrStartRow + 1, c: 6 } },
+        { s: { r: pcrStartRow + 1, c: 7 }, e: { r: pcrStartRow + 1, c: 8 } },
+
+        { s: { r: pcrAgeStartRow, c: 0 }, e: { r: pcrAgeStartRow, c: 4 } },
+        { s: { r: pcrAgeStartRow + 1, c: 0 }, e: { r: pcrAgeStartRow + 2, c: 0 } },
+        { s: { r: pcrAgeStartRow + 1, c: 1 }, e: { r: pcrAgeStartRow + 2, c: 1 } },
+        { s: { r: pcrAgeStartRow + 1, c: 2 }, e: { r: pcrAgeStartRow + 2, c: 2 } },
+        { s: { r: pcrAgeStartRow + 1, c: 3 }, e: { r: pcrAgeStartRow + 1, c: 4 } },
+        { s: { r: pcrAgeStartRow + 1, c: 5 }, e: { r: pcrAgeStartRow + 1, c: 6 } },
+        { s: { r: pcrAgeStartRow + 1, c: 7 }, e: { r: pcrAgeStartRow + 1, c: 8 } },
+
         { s: { r: strainStartRow, c: 0 }, e: { r: strainStartRow, c: 4 } }
     ];
     ws['!merges'] = merges;
@@ -316,6 +372,7 @@ export interface PDFExportOptions {
     includeSummary?: boolean;
     includeAge?: boolean;
     includePcr?: boolean;
+    includePcrAge?: boolean;
     includeStrain?: boolean;
     selectedStrains?: string[];
 }
@@ -325,6 +382,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
         includeSummary = true,
         includeAge = true,
         includePcr = true,
+        includePcrAge = true,
         includeStrain = true,
         selectedStrains = undefined
     } = options;
@@ -361,7 +419,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
         const filteredSiteTable = getFilteredTableData(data, excluded.length ? excluded : undefined);
         const filteredAgeTable = getFilteredAgeTableData(data, excluded.length ? excluded : undefined);
 
-        if (!includeSummary && !includeAge && !includePcr && !includeStrain) {
+        if (!includeSummary && !includeAge && !includePcr && !includePcrAge && !includeStrain) {
             doc.setFontSize(10);
             doc.setTextColor(100);
             doc.text("No PDF sections have been selected for export.", 40, 100);
@@ -407,13 +465,13 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
         }
 
         if (includeAge) {
-            const ageHead = [[{ content: 'Age Distribution', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Culture Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
+            const ageHead = [[{ content: 'Age Distribution (Culture)', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Culture Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
             const ageBody = excluded.length ? filteredAgeTable : getAgeTableData(data);
             const estHeight = 30 + 40 + ageBody.length * 20;
             checkPageBreak(estHeight);
 
             doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
-            doc.text("Age wise diarrheal events", 40, currentY);
+            doc.text("Age wise diarrheal events (Culture)", 40, currentY);
 
             (doc as any).autoTable({
                 head: ageHead,
@@ -442,7 +500,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
             checkPageBreak(estHeight);
 
             doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
-            doc.text("RT-PCR Result", 40, currentY);
+            doc.text("RT-PCR Diagnostic Statistics by Site", 40, currentY);
 
             (doc as any).autoTable({
                 head: pcrHead,
@@ -456,6 +514,35 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
                 pageBreak: 'avoid',
                 didParseCell: function(hookData: any) {
                     if (hookData.section === 'body' && hookData.row.index === pcrBody.length - 1) {
+                        hookData.cell.styles.fontStyle = 'bold';
+                        hookData.cell.styles.fillColor = [229, 231, 235];
+                    }
+                }
+            });
+            currentY = ((doc as any).lastAutoTable?.finalY || currentY + 140) + 25;
+        }
+
+        if (includePcrAge) {
+            const pcrAgeHead = [[{ content: 'Age Distribution (RT-PCR)', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Tests', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Total Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Tested', 'Positive', 'Tested', 'Positive', 'Tested', 'Positive']];
+            const pcrAgeBody = getPcrAgeTableData(data);
+            const estHeight = 30 + 40 + pcrAgeBody.length * 20;
+            checkPageBreak(estHeight);
+
+            doc.setFontSize(14); doc.setTextColor(0); doc.setFont("helvetica", "bold");
+            doc.text("Age wise RT-PCR Diagnostic Statistics", 40, currentY);
+
+            (doc as any).autoTable({
+                head: pcrAgeHead,
+                body: pcrAgeBody,
+                startY: currentY + 15,
+                theme: 'grid',
+                margin: { left: 40, right: 40 },
+                headStyles: commonHeadStyles,
+                styles: tableStyles,
+                alternateRowStyles: { fillColor: [250, 250, 250] },
+                pageBreak: 'avoid',
+                didParseCell: function(hookData: any) {
+                    if (hookData.section === 'body' && hookData.row.index === pcrAgeBody.length - 1) {
                         hookData.cell.styles.fontStyle = 'bold';
                         hookData.cell.styles.fillColor = [229, 231, 235];
                     }
