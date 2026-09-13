@@ -55,6 +55,7 @@ export interface SiteSummary {
   enrollment: number;
   totalDiarrhealEvents: number;
   reportedEventsCount: number;
+  totalCulturePositive: number;
   participantsWithEvents: number;
   after1stDoseEvents: number;
   after1stDoseCulturePositive: number;

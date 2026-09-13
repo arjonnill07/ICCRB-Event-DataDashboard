@@ -16,6 +16,7 @@ const getTableData = (data: SummaryData): (string | number)[][] => {
         item.siteName,
         item.enrollment,
         `${item.totalDiarrhealEvents} (${formatPercent(item.totalDiarrhealEvents, item.enrollment)})`,
+        `${item.totalCulturePositive} (${formatPercent(item.totalCulturePositive, item.reportedEventsCount)})`,
         item.after1stDoseEvents,
         `${item.after1stDoseCulturePositive} (${formatPercent(item.after1stDoseCulturePositive, item.after1stDoseEvents)})`,
         item.after2ndDoseEvents,
@@ -26,7 +27,7 @@ const getTableData = (data: SummaryData): (string | number)[][] => {
 };
 
 type FilteredCultureTotals = {
-    siteAdjusted: Map<string, { after1: number; after2: number; after30: number }>;
+    siteAdjusted: Map<string, { culturePositive: number; after1: number; after2: number; after30: number }>;
     ageAdjusted: Map<string, { culturePositive: number; after1: number; after2: number; after30: number }>;
     strainAdjusted: StrainSummary[]; // row list (without removed strains, includes recalculated Total row in UI builders)
 };
@@ -38,17 +39,19 @@ const computeFilteredCultureTotals = (data: SummaryData, excludedStrains: string
 
     const siteAdjusted = new Map<string, { after1: number; after2: number; after30: number }>();
     for (const site of data.siteStrainDistribution) {
+        let culturePositive = 0;
         let after1 = 0;
         let after2 = 0;
         let after30 = 0;
 
         for (const st of site.strains) {
             if (!included.includes(st.strainName)) continue;
+            culturePositive += st.total;
             after1 += st.after1stDose;
             after2 += st.after2ndDose;
             after30 += st.after30Days2ndDose;
         }
-        siteAdjusted.set(site.siteName, { after1, after2, after30 });
+        siteAdjusted.set(site.siteName, { culturePositive, after1, after2, after30 });
     }
 
     const ageAdjusted = new Map<string, { culturePositive: number; after1: number; after2: number; after30: number }>();
@@ -102,6 +105,7 @@ const getAgeTableData = (data: SummaryData): (string | number)[][] => {
 const getFilteredTableData = (data: SummaryData, selectedStrains: string[] | undefined): (string | number)[][] => {
     const filtered = computeFilteredCultureTotals(data, selectedStrains);
 
+    const totalCulturePositive = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.culturePositive, 0);
     const totalAfter1 = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.after1, 0);
     const totalAfter2 = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.after2, 0);
     const totalAfter30 = Array.from(filtered.siteAdjusted.values()).reduce((s, x) => s + x.after30, 0);
@@ -110,8 +114,8 @@ const getFilteredTableData = (data: SummaryData, selectedStrains: string[] | und
     return allRows.map(item => {
         const adjusted =
             item.siteName === data.totals.siteName
-                ? { after1: totalAfter1, after2: totalAfter2, after30: totalAfter30 }
-                : (filtered.siteAdjusted.get(item.siteName) ?? { after1: 0, after2: 0, after30: 0 });
+                ? { culturePositive: totalCulturePositive, after1: totalAfter1, after2: totalAfter2, after30: totalAfter30 }
+                : (filtered.siteAdjusted.get(item.siteName) ?? { culturePositive: 0, after1: 0, after2: 0, after30: 0 });
 
         // IMPORTANT: diarrheal episode counts remain exactly unchanged.
         // Only Culture Positive counts change.
@@ -119,6 +123,7 @@ const getFilteredTableData = (data: SummaryData, selectedStrains: string[] | und
             item.siteName,
             item.enrollment,
             `${item.totalDiarrhealEvents} (${formatPercent(item.totalDiarrhealEvents, item.enrollment)})`,
+            `${adjusted.culturePositive} (${formatPercent(adjusted.culturePositive, item.reportedEventsCount)})`,
             item.after1stDoseEvents,
             `${adjusted.after1} (${formatPercent(adjusted.after1, item.after1stDoseEvents)})`,
             item.after2ndDoseEvents,
@@ -290,8 +295,8 @@ export const exportDetailedToXLSX = (data: SummaryData, siteFilter: string = "Al
 
 export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
     const reportDateInfo = [`Report Generated: ${generatedAt.toLocaleString()}`];
-    const header1 = ["Site Name", "Enrollment", "Number of Diarrhoeal Events", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
-    const header2 = [null, null, null, "Diarrheal events", "Culture positive", "Diarrheal events", "Culture positive", "Diarrheal events", "Culture positive"];
+    const header1 = ["Site Name", "Enrollment", "Number of Diarrhoeal Events", "Culture Positive", "After 1st dose", null, "After 2nd dose", null, "After 30 days of the 2nd dose", null];
+    const header2 = [null, null, null, null, "Diarrheal events", "Culture positive", "Diarrheal events", "Culture positive", "Diarrheal events", "Culture positive"];
     const siteTableData = getTableData(data);
     
     const ageTitle = ["Age wise diarrheal events (Culture)"];
@@ -333,8 +338,8 @@ export const exportToXLSX = (data: SummaryData, generatedAt: Date) => {
     const strainStartRow = pcrAgeStartRow + 3 + pcrAgeTableData.length + 2; 
 
     const merges = [
-        { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } }, { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } }, { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } },
-        { s: { r: 2, c: 3 }, e: { r: 2, c: 4 } }, { s: { r: 2, c: 5 }, e: { r: 2, c: 6 } }, { s: { r: 2, c: 7 }, e: { r: 2, c: 8 } },
+        { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } }, { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } }, { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } }, { s: { r: 2, c: 3 }, e: { r: 3, c: 3 } },
+        { s: { r: 2, c: 4 }, e: { r: 2, c: 5 } }, { s: { r: 2, c: 6 }, e: { r: 2, c: 7 } }, { s: { r: 2, c: 8 }, e: { r: 2, c: 9 } },
         
         { s: { r: ageStartRow, c: 0 }, e: { r: ageStartRow, c: 4 } },
         { s: { r: ageStartRow + 1, c: 0 }, e: { r: ageStartRow + 2, c: 0 } },
@@ -439,7 +444,7 @@ export const exportToPDF = (data: SummaryData, generatedAt: Date, options: PDFEx
         };
 
         if (includeSummary) {
-            const head = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Enrollment', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Number of Diarrhoeal Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
+            const head = [[{ content: 'Site Name', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Enrollment', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Number of Diarrhoeal Events', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'Culture Positive', rowSpan: 2, styles: { valign: 'middle' } }, { content: 'After 1st dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 2nd dose', colSpan: 2, styles: { halign: 'center' } }, { content: 'After 30 days of the 2nd dose', colSpan: 2, styles: { halign: 'center' } }], ['Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive', 'Diarrheal events', 'Culture positive']];
             const body = excluded.length ? filteredSiteTable : getTableData(data);
             const estHeight = 40 + body.length * 20;
             checkPageBreak(estHeight);
